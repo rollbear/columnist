@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <tuple>
 #include <vector>
 
 template <typename T>
