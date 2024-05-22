@@ -7,6 +7,7 @@
 #include <tuple>
 #include <vector>
 
+namespace table {
 namespace internal {
 template <typename T, typename, typename... Ts>
 static constexpr size_t type_index = 1 + type_index<T, Ts...>;
@@ -240,4 +241,5 @@ bool store<Ts...>::has_key(key k) const
     if (data_idx >= rindex_.size()) { return false; }
     return rindex_[data_idx] == k;
 }
+} // namespace table
 #endif // STORE_STORE_HPP

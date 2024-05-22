@@ -35,6 +35,8 @@ auto equals
 
 void fuzz(generator g)
 {
+    using table::store;
+
     struct K {
         bool operator==(const K&) const = default;
         uint32_t idx: 24;

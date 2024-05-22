@@ -4,6 +4,8 @@
 #include <iostream>
 #include <set>
 
+using table::store;
+
 TEST_CASE("a default constructed store is empty")
 {
     store<int> s;
