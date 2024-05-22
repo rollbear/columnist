@@ -60,11 +60,10 @@ public:
     template <typename... Ts>
     bool operator==(const std::tuple<Ts...>& rh) const
     {
-        return std::apply(
-            [this](const auto&... vs) {
-                return ((std::get<Is>(store_->data_)[idx_] == vs) && ...);
-            },
-            rh);
+        auto elementwise_equality = [this](const auto&... vs) {
+            return ((std::get<Is>(store_->data_)[idx_] == vs) && ...);
+        };
+        return std::apply(elementwise_equality, rh);
     }
 
 private:
@@ -275,7 +274,7 @@ auto store<Ts...>::insert(Us&&... us) -> row_id
         (std::get<Is>(data_).push_back(std::get<Is>(std::forward<T>(t))), ...);
     };
     std::invoke(push,
-                std::make_index_sequence<sizeof...(Ts)>{},
+                std::index_sequence_for<Ts...>{},
                 std::forward_as_tuple(std::forward<Us>(us)...));
     if (first_free_.index == index_.size()) {
         rindex_.push_back(first_free_);
@@ -297,9 +296,13 @@ void store<Ts...>::erase(row_id k)
     auto data_idx = index_[k.index].index;
     assert(data_idx < rindex_.size());
     assert(rindex_[data_idx].index == k.index);
+    auto assign_from_last_and_pop_back = [this, data_idx](auto I) {
+        std::get<I.value>(data_)[data_idx]
+            = std::move(std::get<I.value>(data_).back());
+        std::get<I.value>(data_).pop_back();
+    };
     auto move_last = [&]<size_t... Is>(std::index_sequence<Is...>) {
-        ((std::get<Is>(data_)[data_idx] = std::move(std::get<Is>(data_).back()),
-          std::get<Is>(data_).pop_back()),
+        (assign_from_last_and_pop_back(std::integral_constant<size_t, Is>{}),
          ...);
     };
     std::invoke(move_last, std::make_index_sequence<sizeof...(Ts)>{});
