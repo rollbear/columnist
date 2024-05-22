@@ -7,11 +7,13 @@
 #include <tuple>
 #include <vector>
 
+namespace internal {
 template <typename T, typename, typename... Ts>
 static constexpr size_t type_index = 1 + type_index<T, Ts...>;
 
 template <typename T, typename... Ts>
 static constexpr size_t type_index<T, T, Ts...> = 0;
+} // namespace internal
 
 template <typename... Ts>
 class table {
@@ -76,7 +78,7 @@ public:
     template <typename... Us>
     friend auto select(table& s)
     {
-        return selector<type_index<Us, Ts...>...>{ &s };
+        return selector<internal::type_index<Us, Ts...>...>{ &s };
     }
 
 private:
