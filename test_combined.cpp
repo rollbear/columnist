@@ -40,8 +40,8 @@ TEST_CASE("ranges filter and transform")
     auto odd_diffs = s
                    | std::ranges::views::filter(columnist::select<0>(
                        columnist::apply([](int x) { return x & 1; })))
-                   | std::ranges::views::transform(columnist::apply(
-                       columnist::swizzle<1, 0>(std::minus{})))
+                   | std::ranges::views::transform(columnist::select<1, 0>(
+                       columnist::apply(std::minus{})))
                    | std::ranges::to<std::vector<int>>();
     REQUIRE(odd_diffs == std::vector{ 9, 27, 45 });
 }
