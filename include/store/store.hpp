@@ -29,6 +29,9 @@ static constexpr size_t type_index = 1 + type_index<T, Ts...>;
 template <typename T, typename... Ts>
 static constexpr size_t type_index<T, T, Ts...> = 0;
 
+template <typename T, typename... Ts>
+inline constexpr bool type_is_one_of = (std::is_same_v<T, Ts> || ...);
+
 } // namespace internal
 
 template <typename Store, typename>
@@ -196,17 +199,36 @@ inline constexpr auto select(F f)
 template <size_t... Ins, typename... Ts, typename Table, size_t... Is>
 inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
-    constexpr auto indexes = std::array{ Is... };
-    return row<Table, std::index_sequence<indexes[Ins]...>>{ r };
+    constexpr auto all_indexes_in_range = ((Ins < sizeof...(Is)) && ...);
+    static_assert(
+        all_indexes_in_range,
+        "Valid indexes are ini the range [0..number of elements in row)");
+    if constexpr (all_indexes_in_range) {
+        constexpr auto indexes = std::array{ Is... };
+        return row<Table, std::index_sequence<indexes[Ins]...>>{ r };
+    } else {
+        return row<Table, std::index_sequence<>>{};
+    }
 }
 
 template <typename... Ts, typename Table, size_t... Is>
 inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
     using TT = std::remove_cvref_t<Table>;
-    return select<
-        internal::type_index<Ts, typename TT::template element_type<Is>...>...>(
-        r);
+    constexpr bool valid_types
+        = (internal::type_is_one_of<Ts,
+                                    typename TT::template element_type<Is>...>
+           && ...);
+    static_assert(valid_types,
+                  "Valid types are those represented by the row instance");
+    if constexpr (valid_types) {
+        return select<
+            internal::type_index<Ts,
+                                 typename TT::template element_type<Is>...>...>(
+            r);
+    } else {
+        return row<Table, std::index_sequence<>>{};
+    }
 }
 
 template <typename... Ts>
