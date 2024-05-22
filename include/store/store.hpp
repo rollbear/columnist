@@ -1,5 +1,5 @@
-#ifndef STORE_TABLE_HPP
-#define STORE_TABLE_HPP
+#ifndef STORE_STORE_HPP
+#define STORE_STORE_HPP
 
 #include <cassert>
 #include <cstdint>
@@ -16,7 +16,7 @@ static constexpr size_t type_index<T, T, Ts...> = 0;
 } // namespace internal
 
 template <typename... Ts>
-class table {
+class store {
 public:
     struct key {
         key next_generation() const
@@ -70,13 +70,13 @@ public:
     sentinel end();
 
     template <size_t... Is>
-    friend auto select(table& s)
+    friend auto select(store& s)
     {
         return selector<Is...>{ &s };
     }
 
     template <typename... Us>
-    friend auto select(table& s)
+    friend auto select(store& s)
     {
         return selector<internal::type_index<Us, Ts...>...>{ &s };
     }
@@ -88,7 +88,7 @@ private:
 
         auto end() { return s->end(); }
 
-        table<Ts...>* s;
+        store<Ts...>* s;
     };
 
     template <typename S>
@@ -112,8 +112,8 @@ private:
 
 template <typename... Ts>
 template <size_t... Idxs>
-class table<Ts...>::iterator {
-    friend class table<Ts...>;
+class store<Ts...>::iterator {
+    friend class store<Ts...>;
 
 public:
     using iterator_category = std::forward_iterator_tag;
@@ -150,36 +150,36 @@ public:
     iterator(){};
 
 private:
-    iterator(table<Ts...>* s, size_t idx)
+    iterator(store<Ts...>* s, size_t idx)
     : s(s), idx(idx)
     {}
 
-    table<Ts...>* s = nullptr;
+    store<Ts...>* s = nullptr;
     size_t idx = 0;
 };
 
 template <typename... Ts>
 template <size_t... Is>
-auto table<Ts...>::begin() -> iterator<Is...>
+auto store<Ts...>::begin() -> iterator<Is...>
 {
     return { this, 0 };
 }
 
 template <typename... Ts>
-auto table<Ts...>::begin() -> iterator<>
+auto store<Ts...>::begin() -> iterator<>
 {
     return { this, 0 };
 }
 
 template <typename... Ts>
-auto table<Ts...>::end() -> sentinel
+auto store<Ts...>::end() -> sentinel
 {
     return { rindex_.size() };
 }
 
 template <typename... Ts>
 template <typename... Us>
-auto table<Ts...>::insert(Us&&... us) -> iterator<>
+auto store<Ts...>::insert(Us&&... us) -> iterator<>
     requires(std::is_constructible_v<Ts, Us> && ...)
 {
     auto data_idx = static_cast<uint32_t>(rindex_.size());
@@ -203,7 +203,7 @@ auto table<Ts...>::insert(Us&&... us) -> iterator<>
 }
 
 template <typename... Ts>
-void table<Ts...>::erase(key k)
+void store<Ts...>::erase(key k)
 {
     assert(k.index < index_.size());
     auto data_idx = index_[k.index].index;
@@ -226,18 +226,18 @@ void table<Ts...>::erase(key k)
 
 template <typename... Ts>
 template <size_t... Is>
-void table<Ts...>::erase(iterator<Is...> i)
+void store<Ts...>::erase(iterator<Is...> i)
 {
     assert(i.s == this);
     erase(rindex_[i.idx]);
 }
 
 template <typename... Ts>
-bool table<Ts...>::has_key(key k) const
+bool store<Ts...>::has_key(key k) const
 {
     if (k.index >= index_.size()) { return false; }
     auto data_idx = index_[k.index].index;
     if (data_idx >= rindex_.size()) { return false; }
     return rindex_[data_idx] == k;
 }
-#endif // STORE_TABLE_HPP
+#endif // STORE_STORE_HPP
