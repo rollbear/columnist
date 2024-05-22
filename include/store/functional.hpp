@@ -11,6 +11,7 @@ template <typename F, size_t... Is>
 struct swizzle_ {
     template <typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
+
     constexpr auto operator()(Ts&&... ts) & noexcept(
         std::is_nothrow_invocable_v<
             F&,
@@ -23,6 +24,7 @@ struct swizzle_ {
 
     template <typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
+
     constexpr auto operator()(Ts&&... ts) && noexcept(
         std::is_nothrow_invocable_v<
             F&&,
@@ -35,6 +37,7 @@ struct swizzle_ {
 
     template <typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
+
     constexpr auto operator()(Ts&&... ts) const& noexcept(
         std::is_nothrow_invocable_v<
             const F&,
@@ -47,6 +50,7 @@ struct swizzle_ {
 
     template <typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
+
     constexpr auto operator()(Ts&&... ts) const&& noexcept(
         std::is_nothrow_invocable_v<
             const F&&,
@@ -111,9 +115,8 @@ using as_tuple = decltype(get_tuple(std::declval<T>()));
 template <typename T, typename F>
 concept appliccable = std::invoke(
     []<size_t... Is>(std::index_sequence<Is...>) {
-        return std::is_invocable_v<
-            F,
-            internal::tuple_element_t<Is, internal::as_tuple<T>>...>;
+        using TT = internal::as_tuple<T>;
+        return std::is_invocable_v<F, internal::tuple_element_t<Is, TT>...>;
     },
     std::make_index_sequence<
         std::tuple_size_v<std::remove_cvref_t<internal::as_tuple<T>>>>{});

@@ -57,11 +57,13 @@ struct id {
 };
 
 id(size_t) -> id<index>;
+
 template <size_t N>
 id(const char (&)[N]) -> id<name<N - 1>>;
 
 template <name n, typename T>
 struct named_type {};
+
 } // namespace column
 
 namespace internal {
@@ -140,6 +142,9 @@ static_assert(column_index_v<3,
 
 template <typename... Ts>
 class store {
+    template <size_t... Is>
+    struct selector;
+
 public:
     struct handle {
         handle next_generation() const
@@ -154,9 +159,11 @@ public:
         {}
 
         bool operator==(const handle&) const = default;
+
         uint32_t index: 24;
         uint8_t generation;
     };
+
     template <size_t... Is>
     struct iterator;
 
@@ -175,6 +182,7 @@ public:
         requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...);
 
     void erase(handle);
+
     template <size_t... Is>
     void erase(iterator<Is...> i);
 
@@ -189,7 +197,9 @@ public:
 
     template <column::id... ids>
     iterator<internal::column_index_v<ids, Ts...>...> begin();
+
     iterator<> begin();
+
     sentinel end();
 
     template <column::id... ids>
@@ -266,6 +276,7 @@ class store<Ts...>::iterator {
 
 public:
     using iterator_category = std::forward_iterator_tag;
+
     bool operator==(const iterator&) const = default;
 
     bool operator==(sentinel s) const { return idx == s.size; }
@@ -332,8 +343,9 @@ auto store<Ts...>::insert(Us&&... us) -> handle
     requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...)
 {
     auto data_idx = static_cast<uint32_t>(rindex_.size());
-    auto push = [&]<size_t... Is>(std::index_sequence<Is...>, auto&& t) {
-        (std::get<Is>(data_).push_back(std::get<Is>(std::move(t))), ...);
+    auto push = [&]<size_t... Is, typename T>(std::index_sequence<Is...>,
+                                              T&& t) {
+        (std::get<Is>(data_).push_back(std::get<Is>(std::forward<T>(t))), ...);
     };
     std::invoke(push,
                 std::make_index_sequence<sizeof...(Ts)>{},

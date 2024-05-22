@@ -39,6 +39,7 @@ void fuzz(generator g)
 
     struct K {
         bool operator==(const K&) const = default;
+
         uint32_t idx: 24;
         uint32_t gen: 8;
     };

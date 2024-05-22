@@ -18,10 +18,13 @@ template <throwing may_throw>
 struct callable {
     int& operator()(std::unique_ptr<int>,
                     int) & noexcept(may_throw == throwing::no_throw);
+
     const int& operator()(std::unique_ptr<int>,
                           int) const& noexcept(may_throw == throwing::no_throw);
+
     int&& operator()(std::unique_ptr<int>,
                      int) && noexcept(may_throw == throwing::no_throw);
+
     const int&& operator()(std::unique_ptr<int>,
                            int) const&& noexcept(may_throw
                                                  == throwing::no_throw);
@@ -105,8 +108,8 @@ TEST_CASE("drop first and last", "[swizzle]")
 TEST_CASE("arg forwarding", "[swizzle]")
 {
     using store::swizzle;
-    auto cb = swizzle<0>(std::bind_front(callable<throwing::no_throw>{},
-                                         std::make_unique<int>(3)));
+    using CN = callable<throwing::no_throw>;
+    auto cb = swizzle<0>(std::bind_front(CN{}, std::make_unique<int>(3)));
     REQUIRE(!can_invoke(cb, 3));
     REQUIRE(can_invoke(std::move(cb), 3));
     REQUIRE(!can_invoke(std::as_const(cb), 3));
@@ -116,7 +119,7 @@ TEST_CASE("arg forwarding", "[swizzle]")
 TEST_CASE("swizzle is constexpr", "[swizzle]")
 {
     using store::swizzle;
-    constexpr auto f = swizzle<1, 0>([](int a, int b) { return a - b; });
+    constexpr auto f = swizzle<1, 0>(std::minus{});
     STATIC_REQUIRE(f(5, 2) == -3);
 }
 
@@ -218,6 +221,6 @@ TEST_CASE("apply a swizzled function", "[swizzle][apply]")
 
 TEST_CASE("apply is constexpr", "[apply]")
 {
-    constexpr auto a = apply([](int x, int y) { return x - y; });
+    constexpr auto a = apply(std::minus{});
     STATIC_REQUIRE(a(std::tuple(5, 2)) == 3);
 }
