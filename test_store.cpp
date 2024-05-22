@@ -1,19 +1,19 @@
 #include <catch2/catch_test_macros.hpp>
-#include <store/store.hpp>
+#include <store/table.hpp>
 
 #include <iostream>
 #include <set>
 
 TEST_CASE("a default constructed store is empty")
 {
-    store<int> s;
+    table<int> s;
     REQUIRE(s.empty());
     REQUIRE(s.size() == 0);
 }
 
 TEST_CASE("insert returns the object and the key")
 {
-    store<int> s;
+    table<int> s;
     auto i = s.insert(3);
     auto k = std::get<0>(*i);
     REQUIRE(std::get<0>(s[k]) == 3);
@@ -22,7 +22,7 @@ TEST_CASE("insert returns the object and the key")
 
 TEST_CASE("erase invalidates the key")
 {
-    store<int> s;
+    table<int> s;
     auto i1 = s.insert(0);
     auto k1 = std::get<0>(*i1);
     auto i2 = s.insert(1);
@@ -36,7 +36,7 @@ TEST_CASE("erase invalidates the key")
 
 TEST_CASE("iteration")
 {
-    store<int> s;
+    table<int> s;
     std::vector keys{ s.insert(0) };
     keys.push_back(s.insert(1));
     s.erase(keys[0]);
@@ -61,7 +61,7 @@ TEST_CASE("iteration")
 
 TEST_CASE("indexes aren't reused, their generation shifts")
 {
-    store<int> s;
+    table<int> s;
     auto p = s.insert(1);
     auto kp = std::get<0>(*p);
     s.erase(p);
@@ -75,7 +75,7 @@ TEST_CASE("indexes aren't reused, their generation shifts")
 
 TEST_CASE("pluralized")
 {
-    store<int, std::string> s;
+    table<int, std::string> s;
     auto i1 = s.insert(3, "foo");
     auto i2 = s.insert(5, "bar");
     REQUIRE(std::get<1>(*i1) == 3);

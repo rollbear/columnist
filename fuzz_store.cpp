@@ -1,5 +1,5 @@
 
-#include <store/store.hpp>
+#include <store/table.hpp>
 
 #include <algorithm>
 #include <cstring>
@@ -41,7 +41,7 @@ void fuzz(generator g)
         uint32_t gen: 8;
     };
 
-    using T = store<std::unique_ptr<K>>;
+    using T = table<std::unique_ptr<K>>;
     std::optional<T> v;
     std::vector<T::key> keys;
     std::deque<T::key> retired_keys;
