@@ -269,10 +269,12 @@ auto store<Ts...>::insert(Us&&... us) -> row_id
     requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...)
 {
     auto data_idx = static_cast<uint32_t>(rindex_.size());
-    auto push = [&]<size_t... Is, typename T>(std::index_sequence<Is...>,
-                                              T&& t) {
-        (std::get<Is>(data_).push_back(std::get<Is>(std::forward<T>(t))), ...);
-    };
+    auto push
+        = [&]<size_t... Is, typename T>(std::index_sequence<Is...>, T&& t) {
+              ((void)std::get<Is>(data_).emplace_back(
+                   std::get<Is>(std::forward<T>(t))),
+               ...);
+          };
     std::invoke(push,
                 std::index_sequence_for<Ts...>{},
                 std::forward_as_tuple(std::forward<Us>(us)...));
