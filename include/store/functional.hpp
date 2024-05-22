@@ -6,59 +6,24 @@
 #include <type_traits>
 #include <utility>
 
+namespace internal {
+template <typename T, typename U>
+using forwarded_like = decltype(std::forward_like<T>(std::declval<U>()));
+}
+
 namespace store {
 template <typename F, size_t... Is>
 struct swizzle_ {
-    template <typename... Ts>
+    template <typename Self, typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
-
-    constexpr auto operator()(Ts&&... ts) & noexcept(
+    constexpr auto operator()(this Self&& self, Ts&&... ts) noexcept(
         std::is_nothrow_invocable_v<
             F&,
             std::tuple_element_t<Is, std::tuple<Ts...>>...>)
-        -> std::invoke_result_t<F&,
+        -> std::invoke_result_t<internal::forwarded_like<Self, F&>,
                                 std::tuple_element_t<Is, std::tuple<Ts...>>...>
     {
-        return call(f, std::forward<Ts>(ts)...);
-    }
-
-    template <typename... Ts>
-        requires((Is < sizeof...(Ts)) && ...)
-
-    constexpr auto operator()(Ts&&... ts) && noexcept(
-        std::is_nothrow_invocable_v<
-            F&&,
-            std::tuple_element_t<Is, std::tuple<Ts...>>...>)
-        -> std::invoke_result_t<F&&,
-                                std::tuple_element_t<Is, std::tuple<Ts...>>...>
-    {
-        return call(std::move(f), std::forward<Ts>(ts)...);
-    }
-
-    template <typename... Ts>
-        requires((Is < sizeof...(Ts)) && ...)
-
-    constexpr auto operator()(Ts&&... ts) const& noexcept(
-        std::is_nothrow_invocable_v<
-            const F&,
-            std::tuple_element_t<Is, std::tuple<Ts...>>...>)
-        -> std::invoke_result_t<const F&,
-                                std::tuple_element_t<Is, std::tuple<Ts...>>...>
-    {
-        return call(f, std::forward<Ts>(ts)...);
-    }
-
-    template <typename... Ts>
-        requires((Is < sizeof...(Ts)) && ...)
-
-    constexpr auto operator()(Ts&&... ts) const&& noexcept(
-        std::is_nothrow_invocable_v<
-            const F&&,
-            std::tuple_element_t<Is, std::tuple<Ts...>>...>)
-        -> std::invoke_result_t<const F&&,
-                                std::tuple_element_t<Is, std::tuple<Ts...>>...>
-    {
-        return call(std::move(f), std::forward<Ts>(ts)...);
+        return call(std::forward<Self>(self).f, std::forward<Ts>(ts)...);
     }
 
     template <typename FF, typename... Ts>
@@ -78,38 +43,16 @@ inline constexpr auto swizzle = []<typename F>(F&& f) {
 };
 
 namespace internal {
-template <size_t I, typename T>
-struct tuple_element {
-    using type = std::tuple_element_t<I, T>;
-};
 
 template <size_t I, typename T>
-struct tuple_element<I, const T> {
-    using type = const typename tuple_element<I, T>::type;
-};
-
-template <size_t I, typename T>
-struct tuple_element<I, T&> {
-    using type = typename tuple_element<I, T>::type&;
-};
-
-template <size_t I, typename T>
-using tuple_element_t = typename tuple_element<I, T>::type;
-
-template <typename... Ts>
-std::tuple<Ts...>& get_tuple(std::tuple<Ts...>&);
-
-template <typename... Ts>
-std::tuple<Ts...> get_tuple(std::tuple<Ts...>&&);
-
-template <typename... Ts>
-const std::tuple<Ts...>& get_tuple(std::tuple<Ts...> const&);
-
-template <typename... Ts>
-const std::tuple<Ts...> get_tuple(std::tuple<Ts...> const&&);
+using tuple_element_t = ::internal::
+    forwarded_like<T, typename std::tuple_element_t<I, std::remove_cvref_t<T>>>;
+template <typename T, typename... Ts>
+auto get_tuple(const std::tuple<Ts...>&)
+    -> ::internal::forwarded_like<T, std::tuple<Ts...>&>;
 
 template <typename T>
-using as_tuple = decltype(get_tuple(std::declval<T>()));
+using as_tuple = decltype(get_tuple<T>(std::declval<T>()));
 } // namespace internal
 
 template <typename T, typename F>
@@ -123,36 +66,14 @@ concept appliccable = std::invoke(
 
 template <typename F>
 struct apply_ {
-    template <appliccable<F&> T>
-    constexpr decltype(auto) operator()(T&& t) & noexcept(
-        noexcept(std::apply(f, std::forward<internal::as_tuple<T>>(t))))
+    template <typename Self,
+              appliccable<::internal::forwarded_like<Self, F&>> T>
+    constexpr decltype(auto) operator()(this Self&& self, T&& t) noexcept(
+        noexcept(std::apply(std::forward<Self>(self).f,
+                            std::forward<internal::as_tuple<T>>(t))))
     {
         using TT = internal::as_tuple<T>;
-        return std::apply(f, std::forward<TT>(t));
-    }
-
-    template <appliccable<F&&> T>
-    constexpr decltype(auto) operator()(T&& t) && noexcept(noexcept(
-        std::apply(std::move(f), std::forward<internal::as_tuple<T>>(t))))
-    {
-        using TT = internal::as_tuple<T>;
-        return std::apply(std::move(f), std::forward<TT>(t));
-    }
-
-    template <appliccable<const F&> T>
-    constexpr decltype(auto) operator()(T&& t) const& noexcept(
-        noexcept(std::apply(f, std::forward<internal::as_tuple<T>>(t))))
-    {
-        using TT = internal::as_tuple<T>;
-        return std::apply(f, std::forward<TT>(t));
-    }
-
-    template <appliccable<const F&&> T>
-    constexpr decltype(auto) operator()(T&& t) const&& noexcept(noexcept(
-        std::apply(std::move(f), std::forward<internal::as_tuple<T>>(t))))
-    {
-        using TT = internal::as_tuple<T>;
-        return std::apply(std::move(f), std::forward<TT>(t));
+        return std::apply(std::forward<Self>(self).f, std::forward<TT>(t));
     }
 
     F f;
