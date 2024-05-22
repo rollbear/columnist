@@ -124,32 +124,28 @@ struct apply_ {
     constexpr decltype(auto) operator()(T&& t) &
     {
         using TT = internal::as_tuple<T>;
-        auto&& tt = static_cast<TT&&>(t);
-        return std::apply(f, std::forward<TT>(tt));
+        return std::apply(f, std::forward<TT>(t));
     }
 
     template <appliccable<F&&> T>
     constexpr decltype(auto) operator()(T&& t) &&
     {
         using TT = internal::as_tuple<T>;
-        auto&& tt = static_cast<TT&&>(t);
-        return std::apply(std::move(f), std::forward<TT>(tt));
+        return std::apply(std::move(f), std::forward<TT>(t));
     }
 
     template <appliccable<const F&> T>
     constexpr decltype(auto) operator()(T&& t) const&
     {
         using TT = internal::as_tuple<T>;
-        auto&& tt = static_cast<TT&&>(t);
-        return std::apply(std::as_const(f), std::forward<TT>(tt));
+        return std::apply(std::as_const(f), std::forward<TT>(t));
     }
 
     template <appliccable<const F&&> T>
     constexpr decltype(auto) operator()(T&& t) const&&
     {
         using TT = internal::as_tuple<T>;
-        auto&& tt = static_cast<TT&&>(t);
-        return std::apply(std::move(f), std::forward<TT>(tt));
+        return std::apply(std::move(f), std::forward<TT>(t));
     }
 
     F f;
