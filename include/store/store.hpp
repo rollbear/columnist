@@ -10,6 +10,13 @@ template <typename T>
 class store {
 public:
     struct key {
+        key next_generation() const
+        {
+            auto copy = *this;
+            ++copy.generation;
+            return copy;
+        }
+
         bool operator==(const key&) const = default;
         uint32_t index: 24;
         uint32_t generation: 8;
@@ -23,7 +30,7 @@ public:
 
     template <typename... Ts>
         requires std::is_constructible_v<T, Ts...>
-    value_type insert(Ts&&... ts);
+    key insert(Ts&&... ts);
 
     void erase(key);
 
@@ -48,7 +55,7 @@ private:
     std::vector<T> data_;
     std::vector<key> rindex_;
     std::vector<key> index_;
-    uint32_t first_free_ = 0;
+    key first_free_ = { 0, 0 };
 };
 
 template <typename T>
@@ -103,20 +110,22 @@ auto store<T>::end() -> iterator
 template <typename T>
 template <typename... Ts>
     requires std::is_constructible_v<T, Ts...>
-auto store<T>::insert(Ts&&... ts) -> value_type
+auto store<T>::insert(Ts&&... ts) -> key
 {
     auto data_idx = static_cast<uint32_t>(data_.size());
     auto& element = data_.emplace_back(std::forward<Ts>(ts)...);
-    rindex_.push_back(key{ first_free_, 0 });
-    if (first_free_ == index_.size()) {
+    if (first_free_.index == index_.size()) {
+        rindex_.push_back(first_free_);
         index_.push_back({ data_idx, 0 });
-        first_free_ = index_.size();
+        first_free_.index = index_.size();
+        first_free_.generation = 0;
     } else {
         auto index_pos = first_free_;
-        first_free_ = index_[first_free_].index;
-        index_[index_pos] = { data_idx, 0 };
+        first_free_ = index_[first_free_.index];
+        index_[index_pos.index] = { data_idx, index_pos.generation };
+        rindex_.push_back(index_pos);
     }
-    return { rindex_.back(), element };
+    return rindex_.back();
 }
 
 template <typename T>
@@ -133,8 +142,9 @@ void store<T>::erase(key k)
     }
     data_.pop_back();
     rindex_.pop_back();
-    index_[k.index].index = first_free_;
-    first_free_ = k.index;
+    index_[k.index] = first_free_;
+    first_free_ = k.next_generation();
+    ;
 }
 
 template <typename T>

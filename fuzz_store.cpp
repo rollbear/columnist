@@ -1,11 +1,11 @@
+
 #include <store/store.hpp>
 
 #include <algorithm>
-#include <bit>
+#include <cstring>
 #include <deque>
 #include <memory>
 #include <optional>
-#include <ranges>
 #include <span>
 #include <vector>
 
@@ -20,7 +20,8 @@ struct generator {
     T get()
     {
         if (data.size() < sizeof(T)) { throw done{}; }
-        auto value = *std::bit_cast<T*>(data.data());
+        T value;
+        std::memcpy(&value, data.data(), sizeof(T));
 
         data = data.subspan(sizeof value);
         return value;
@@ -43,7 +44,7 @@ void fuzz(generator g)
     using T = store<std::unique_ptr<K>>;
     std::optional<T> v;
     std::vector<T::key> keys;
-    std::vector<T::key> retired_keys;
+    std::deque<T::key> retired_keys;
 
     try {
         size_t elems = 0;
@@ -63,12 +64,12 @@ void fuzz(generator g)
                 assert(elems == v->size());
                 break;
             case 2: {
-                auto [k, val] = v->insert(std::make_unique<K>());
+                auto k = v->insert(std::make_unique<K>());
                 assert(std::ranges::none_of(keys, equals(k)));
-                // assert(std::ranges::none_of(retired_keys, equals(k)));
+                assert(std::ranges::none_of(retired_keys, equals(k)));
                 keys.push_back(k);
                 ++elems;
-                *val = { k.index, k.generation };
+                *(*v)[k] = { k.index, k.generation };
                 break;
             }
             case 3: {
@@ -78,7 +79,8 @@ void fuzz(generator g)
                     assert(v->has_key(k));
                     v->erase(k);
                     --elems;
-                    // retired_keys.push_back(k);
+                    retired_keys.push_back(k);
+                    if (retired_keys.size() > 250) { retired_keys.pop_front(); }
                     keys[idx] = std::move(keys.back());
                     keys.pop_back();
                 }
