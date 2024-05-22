@@ -91,28 +91,9 @@ TEST_CASE("pluralized")
     REQUIRE(std::get<1>(*select<int>(s).begin()) == 5);
 }
 
-TEST_CASE("named columns")
-{
-    using table::column::named_type;
-    store<named_type<"number", int>, named_type<"name", std::string>> s;
-    s.insert(1, "one");
-    s.insert(2, "two");
-    s.insert(3, "three");
-    std::set<std::tuple<int, std::string>> expected{ { 1, "one" },
-                                                     { 2, "two" },
-                                                     { 3, "three" } };
-    for (auto [handle, name, number] : select<"name", "number">(s)) {
-        auto i = expected.find({ number, name });
-        REQUIRE(i != expected.end());
-        expected.erase(i);
-    }
-    REQUIRE(expected.empty());
-}
-
 TEST_CASE("erase_if")
 {
-    using table::column::named_type;
-    store<named_type<"number", int>, named_type<"name", std::string>> s;
+    store<int, std::string> s;
     s.insert(1, "one");
     s.insert(2, "two");
     s.insert(3, "three");
@@ -134,7 +115,7 @@ TEST_CASE("erase_if")
         REQUIRE(expected.empty());
     }
     {
-        auto count = erase_if(select<"number">(s),
+        auto count = erase_if(select<int>(s),
                               [](auto&& t) { return std::get<1>(t) > 1; });
         REQUIRE(count == 2);
         REQUIRE(s.size() == 1);

@@ -11,61 +11,6 @@
 
 namespace table {
 
-namespace column {
-template <size_t N>
-struct name {
-    consteval name(const char* p)
-    {
-        std::copy_n(p, N, data_);
-        data_[N] = '\0';
-    }
-
-    template <size_t M>
-    consteval bool operator==(name<M> rh) const
-    {
-        return std::equal(data_, data_ + N, rh.data_, rh.data_ + M);
-    }
-
-    char data_[N + 1];
-};
-
-template <size_t N>
-name(const char (&)[N]) -> name<N - 1>;
-
-struct index {
-    consteval index(size_t n)
-    : value(n)
-    {}
-
-    size_t value;
-};
-
-template <typename T>
-struct id {
-    consteval id(size_t n)
-        requires(std::is_same_v<T, index>)
-    : value(n)
-    {}
-
-    template <size_t N>
-    consteval id(const char (&p)[N])
-        requires(std::is_same_v<T, name<N - 1>>)
-    : value(p)
-    {}
-
-    T value;
-};
-
-id(size_t) -> id<index>;
-
-template <size_t N>
-id(const char (&)[N]) -> id<name<N - 1>>;
-
-template <name n, typename T>
-struct named_type {};
-
-} // namespace column
-
 namespace internal {
 
 template <typename T>
@@ -73,70 +18,16 @@ struct type_of {
     using type = T;
 };
 
-template <column::name n, typename T>
-struct type_of<column::named_type<n, T>> {
-    using type = T;
-};
-
 template <typename T>
 using type_of_t = typename type_of<T>::type;
 
 static_assert(std::is_same_v<int, type_of_t<int>>);
-static_assert(std::is_same_v<int, type_of_t<column::named_type<"foo", int>>>);
-
-template <column::name n, typename T>
-struct has_name : std::false_type {};
-
-template <column::name n, typename T>
-inline constexpr bool has_name_v = has_name<n, T>::value;
-
-template <column::name desired, column::name actual, typename T>
-struct has_name<desired, column::named_type<actual, T>>
-: std::bool_constant<desired == actual> {};
-
-static_assert(!has_name_v<"foo", bool>);
-static_assert(!has_name_v<"foo", column::named_type<"barf", bool>>);
-static_assert(has_name_v<"foo", column::named_type<"foo", bool>>);
 
 template <typename T, typename, typename... Ts>
 static constexpr size_t type_index = 1 + type_index<T, Ts...>;
 
 template <typename T, typename... Ts>
 static constexpr size_t type_index<T, T, Ts...> = 0;
-
-template <auto, typename, typename... Ts>
-struct column_index;
-
-template <column::name n, typename T, typename... Ts>
-struct column_index<n, T, Ts...> {
-    static constexpr size_t value = 1 + column_index<n, Ts...>::value;
-};
-
-template <column::name desired, typename T, typename... Ts>
-struct column_index<desired, column::named_type<desired, T>, Ts...> {
-    static constexpr size_t value = 0;
-};
-
-template <column::index i, typename T, typename... Ts>
-struct column_index<i, T, Ts...> {
-    static constexpr size_t value = i.value;
-};
-
-template <column::id n, typename... Ts>
-inline constexpr size_t column_index_v = column_index<n.value, Ts...>::value;
-
-static_assert(column_index_v<"foo",
-                             int,
-                             column::named_type<"bor", void>,
-                             column::named_type<"foo", int>,
-                             char>
-              == 2);
-static_assert(column_index_v<3,
-                             int,
-                             column::named_type<"bor", void>,
-                             column::named_type<"foo", int>,
-                             char>
-              == 3);
 
 } // namespace internal
 
@@ -195,17 +86,17 @@ public:
         return lookup(*this, k);
     }
 
-    template <column::id... ids>
-    iterator<internal::column_index_v<ids, Ts...>...> begin();
+    template <size_t... Is>
+    iterator<Is...> begin();
 
     iterator<> begin();
 
     sentinel end();
 
-    template <column::id... ids>
+    template <size_t... Is>
     friend auto select(store& s)
     {
-        return selector<internal::column_index_v<ids, Ts...>...>{ &s };
+        return selector<Is...>{ &s };
     }
 
     template <typename... Us>
@@ -319,8 +210,8 @@ private:
 };
 
 template <typename... Ts>
-template <column::id... ids>
-auto store<Ts...>::begin() -> iterator<internal::column_index_v<ids, Ts...>...>
+template <size_t... Is>
+auto store<Ts...>::begin() -> iterator<Is...>
 {
     return { this, 0 };
 }
