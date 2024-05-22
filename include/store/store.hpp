@@ -37,9 +37,16 @@ class row;
 template <typename Store, size_t... Is>
 class row<Store, std::index_sequence<Is...>> {
     friend Store;
+    template <typename, typename>
+    friend class row;
 
 public:
     row() = default;
+
+    template <size_t... PIs>
+    row(const row<Store, std::index_sequence<PIs...>>& r)
+    : store_(r.store_), idx_(r.idx_)
+    {}
 
     Store::row_id row_id() const { return store_->rindex_[idx_]; }
 
@@ -77,14 +84,14 @@ private:
 
 template <typename... Ts>
 class store {
-    template <size_t... Is>
-    struct selector;
     template <typename S, typename Is>
     friend class row;
 
 public:
     template <size_t I>
     using element_type = std::tuple_element_t<I, std::tuple<Ts...>>;
+    template <typename T>
+    static constexpr size_t type_index = internal::type_index<T, Ts...>;
 
     struct row_id {
         row_id next_generation() const
@@ -145,29 +152,11 @@ public:
 
     sentinel end();
 
-    template <size_t... Is>
-    friend auto select(store& s)
-    {
-        return selector<Is...>{ &s };
-    }
-
-    template <typename... Us>
-    friend auto select(store& s)
-    {
-        return selector<internal::type_index<Us, Ts...>...>{ &s };
-    }
-
     template <typename P>
     friend size_t erase_if(store& s, P p)
     {
-        return erase_if(s.begin(), s, p);
-    }
-
-private:
-    template <typename P, typename S, size_t... Is>
-    friend size_t erase_if(iterator<Is...> i, S& s, P p)
-    {
         size_t rv = 0;
+        auto i = s.begin();
         while (i != s.end()) {
             if (p(*i)) {
                 ++rv;
@@ -179,25 +168,62 @@ private:
         return rv;
     }
 
-    template <size_t... Is>
-    struct selector {
-        friend size_t erase_if(selector sel, auto p)
-        {
-            return erase_if(sel.begin(), *sel.s, p);
-        }
-
-        auto begin() { return s->begin<Is...>(); }
-
-        auto end() { return s->end(); }
-
-        store<Ts...>* s;
-    };
-
+private:
     std::tuple<std::vector<internal::type_of_t<Ts>>...> data_;
     std::vector<row_id> rindex_;
     std::vector<row_id> index_;
     row_id first_free_ = { 0, 0 };
 };
+
+template <typename T, size_t... Is>
+struct selector {
+    template <typename S, typename Idxs>
+    decltype(auto) operator()(row<S, Idxs> r)
+    {
+        auto f = [this, &r]<size_t... I>(std::index_sequence<I...>) {
+            using new_idxs = std::index_sequence<std::tuple_element_t<
+                Is,
+                std::tuple<std::integral_constant<size_t, I>...>>::value...>;
+            return t(row<S, new_idxs>(r));
+        };
+        return f(Idxs{});
+    }
+
+    template <typename TT = T>
+    auto begin() -> decltype(std::declval<TT&>().template begin<Is...>())
+    {
+        return t.template begin<Is...>();
+    }
+
+    template <typename TT = T>
+    auto end() -> decltype(std::declval<TT&>().template end<Is...>())
+    {
+        return t.template end<Is...>();
+    }
+
+    T t;
+};
+
+template <size_t... Is, typename F>
+inline constexpr auto select(F f)
+{
+    return selector<F, Is...>{ f };
+};
+
+template <typename... Ts, typename T>
+inline constexpr auto select(T&& t)
+    requires requires(T& t) { t.template begin<0>(); }
+{
+    using TT = std::remove_cvref_t<T>;
+    return selector<T, TT::template type_index<Ts>...>{ std::forward<T>(t) };
+}
+
+template <typename... Ts, typename Table, size_t... Is>
+inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
+{
+    using TT = std::remove_cvref_t<Table>;
+    return row<Table, std::index_sequence<TT::template type_index<Ts>...>>{ r };
+}
 
 template <typename... Ts>
 template <size_t... Idxs>

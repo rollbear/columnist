@@ -112,10 +112,10 @@ TEST_CASE("pluralized")
     s.erase(h1);
     REQUIRE(get<0>(*s.begin<1>()) == "bar");
     REQUIRE(get<0>(*s.begin<0>()) == 5);
-    REQUIRE(get<0>(*select<1>(s).begin()) == "bar");
-    REQUIRE(get<0>(*select<0>(s).begin()) == 5);
-    REQUIRE(get<0>(*select<std::string>(s).begin()) == "bar");
-    REQUIRE(get<0>(*select<int>(s).begin()) == 5);
+    REQUIRE(get<0>(*table::select<1>(s).begin()) == "bar");
+    REQUIRE(get<0>(*table::select<0>(s).begin()) == 5);
+    REQUIRE(get<0>(table::select<std::string>(*s.begin())) == "bar");
+    REQUIRE(get<0>(table::select<int>(*s.begin())) == 5);
 }
 
 TEST_CASE("erase_if")
@@ -141,8 +141,8 @@ TEST_CASE("erase_if")
         REQUIRE(expected.empty());
     }
     {
-        auto count
-            = erase_if(select<int>(s), [](auto&& t) { return get<0>(t) > 1; });
+        auto count = erase_if(
+            s, table::select<0>([](auto&& t) { return get<0>(t) > 1; }));
         REQUIRE(count == 2);
         REQUIRE(s.size() == 1);
         auto [num, name] = *s.begin();
