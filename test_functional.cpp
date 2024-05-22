@@ -27,7 +27,7 @@ struct callable {
                                                  == throwing::no_throw);
 };
 
-TEST_CASE("noexcept forwarding")
+TEST_CASE("noexcept forwarding", "[swizzle]")
 {
     using store::swizzle;
     auto c = swizzle<0, 1>(callable<throwing::no_throw>{});
@@ -42,7 +42,7 @@ TEST_CASE("noexcept forwarding")
     REQUIRE(!noexcept(std::move(std::as_const(ct))(nullptr, 1)));
 }
 
-TEST_CASE("return type")
+TEST_CASE("return type", "[swizzle]")
 {
     using store::swizzle;
     auto c = swizzle<0, 1>(callable<throwing::no_throw>{});
@@ -60,7 +60,7 @@ TEST_CASE("return type")
                            decltype(std::move(std::as_const(ct))(nullptr, 1))>);
 }
 
-TEST_CASE("reorder")
+TEST_CASE("reorder", "[swizzle]")
 {
     using store::swizzle;
     auto c = swizzle<1, 0>(callable<throwing::no_throw>{});
@@ -78,7 +78,7 @@ TEST_CASE("reorder")
                            decltype(std::move(std::as_const(ct))(1, nullptr))>);
 }
 
-TEST_CASE("drop first and last")
+TEST_CASE("drop first and last", "[swizzle]")
 {
     using store::swizzle;
     constexpr void* n = nullptr;
@@ -102,7 +102,7 @@ TEST_CASE("drop first and last")
                                n, 1, nullptr, "foo"))>);
 }
 
-TEST_CASE("arg forwarding")
+TEST_CASE("arg forwarding", "[swizzle]")
 {
     using store::swizzle;
     auto cb = swizzle<0>(std::bind_front(callable<throwing::no_throw>{},
@@ -111,4 +111,68 @@ TEST_CASE("arg forwarding")
     REQUIRE(can_invoke(std::move(cb), 3));
     REQUIRE(!can_invoke(std::as_const(cb), 3));
     REQUIRE(!can_invoke(std::move(std::as_const(cb)), 3));
+}
+
+namespace {
+struct S {
+    int& operator()(std::unique_ptr<int> a, int& b) && { return b += *a; }
+};
+
+using T = std::tuple<std::unique_ptr<int>, int&>;
+
+using store::apply;
+static_assert(!std::is_invocable_v<decltype(apply(S{}))&, T&&>);
+static_assert(std::is_invocable_v<decltype(apply(S{}))&&, T&&>);
+static_assert(std::is_invocable_v<decltype(apply(S{})), T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})) const&, T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})) const&&, T&&>);
+static_assert(!std::is_invocable_v<const decltype(apply(S{})), T&&>);
+
+static_assert(!std::is_invocable_v<decltype(apply(S{}))&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{}))&&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})), T&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})) const&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})) const&&, T&>);
+static_assert(!std::is_invocable_v<const decltype(apply(S{})), T&>);
+
+static_assert(!std::is_invocable_v<decltype(apply(S{}))&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{}))&&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})), const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})) const&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})) const&&, const T&>);
+static_assert(!std::is_invocable_v<const decltype(apply(S{})), const T&>);
+
+static_assert(!std::is_invocable_v<decltype(apply(S{}))&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{}))&&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})), const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})) const&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(S{})) const&&, const T&&>);
+static_assert(!std::is_invocable_v<const decltype(apply(S{})), const T&&>);
+
+} // namespace
+
+struct TT : std::tuple<std::unique_ptr<int>, int> {
+    using tuple::tuple;
+};
+
+TEST_CASE("apply works with types inheriting from tuple", "[apply]")
+{
+    auto a = apply(callable<throwing::no_throw>{});
+    TT tt;
+    REQUIRE(std::is_same_v<int&, decltype(a(std::move(tt)))>);
+    REQUIRE(
+        std::is_same_v<const int&, decltype(std::as_const(a)(std::move(tt)))>);
+    REQUIRE(std::is_same_v<int&&, decltype(std::move(a)(std::move(tt)))>);
+    REQUIRE(
+        std::is_same_v<const int&&,
+                       decltype(std::move(std::as_const(a))(std::move(tt)))>);
+}
+
+TEST_CASE("apply a swizzled function", "[swizzle][apply]")
+{
+    using store::swizzle;
+    auto f
+        = swizzle<1, 0>([](int a, std::unique_ptr<int> b) { return a + *b; });
+    auto x = apply(f)(std::tuple{ std::make_unique<int>(3), 5 });
+    REQUIRE(x == 8);
 }
