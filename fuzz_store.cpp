@@ -45,8 +45,8 @@ void fuzz(generator g)
 
     using T = store<std::unique_ptr<K>>;
     std::optional<T> v;
-    std::vector<T::key> keys;
-    std::deque<T::key> retired_keys;
+    std::vector<T::handle> keys;
+    std::deque<T::handle> retired_keys;
 
     try {
         size_t elems = 0;

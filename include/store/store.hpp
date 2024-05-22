@@ -139,19 +139,19 @@ static_assert(column_index_v<3,
 template <typename... Ts>
 class store {
 public:
-    struct key {
-        key next_generation() const
+    struct handle {
+        handle next_generation() const
         {
             auto copy = *this;
             ++copy.generation;
             return copy;
         }
 
-        constexpr key(uint32_t i, uint8_t g = 0)
+        constexpr handle(uint32_t i, uint8_t g = 0)
         : index(i & ((1U << 24) - 1)), generation(g)
         {}
 
-        bool operator==(const key&) const = default;
+        bool operator==(const handle&) const = default;
         uint32_t index: 24;
         uint8_t generation;
     };
@@ -162,7 +162,7 @@ public:
         size_t size;
     };
 
-    using value_type = std::tuple<const key&, Ts&...>;
+    using value_type = std::tuple<const handle&, Ts&...>;
 
     size_t size() const { return rindex_.size(); }
 
@@ -172,15 +172,15 @@ public:
     auto insert(Us&&... us) -> iterator<>
         requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...);
 
-    void erase(key);
+    void erase(handle);
     template <size_t... Is>
     void erase(iterator<Is...> i);
 
-    bool has_key(key k) const;
+    bool has_key(handle k) const;
 
-    std::tuple<Ts&...> operator[](key k) { return lookup(*this, k); }
+    std::tuple<Ts&...> operator[](handle k) { return lookup(*this, k); }
 
-    const std::tuple<Ts&...> operator[](key k) const
+    const std::tuple<Ts&...> operator[](handle k) const
     {
         return lookup(*this, k);
     }
@@ -213,7 +213,7 @@ private:
     };
 
     template <typename S>
-    static auto lookup(S&& s, key k)
+    static auto lookup(S&& s, handle k)
     {
         assert(k.index < s.index_.size());
         auto data_idx = s.index_[k.index].index;
@@ -226,9 +226,9 @@ private:
     }
 
     std::tuple<std::vector<internal::type_of_t<Ts>>...> data_;
-    std::vector<key> rindex_;
-    std::vector<key> index_;
-    key first_free_ = { 0, 0 };
+    std::vector<handle> rindex_;
+    std::vector<handle> index_;
+    handle first_free_ = { 0, 0 };
 };
 
 template <typename... Ts>
@@ -313,7 +313,7 @@ auto store<Ts...>::insert(Us&&... us) -> iterator<>
     if (first_free_.index == index_.size()) {
         rindex_.push_back(first_free_);
         index_.push_back({ data_idx, 0 });
-        first_free_ = key(static_cast<uint32_t>(index_.size()));
+        first_free_ = handle(static_cast<uint32_t>(index_.size()));
     } else {
         auto index_pos = first_free_;
         first_free_ = index_[first_free_.index];
@@ -324,7 +324,7 @@ auto store<Ts...>::insert(Us&&... us) -> iterator<>
 }
 
 template <typename... Ts>
-void store<Ts...>::erase(key k)
+void store<Ts...>::erase(handle k)
 {
     assert(k.index < index_.size());
     auto data_idx = index_[k.index].index;
@@ -354,7 +354,7 @@ void store<Ts...>::erase(iterator<Is...> i)
 }
 
 template <typename... Ts>
-bool store<Ts...>::has_key(key k) const
+bool store<Ts...>::has_key(handle k) const
 {
     if (k.index >= index_.size()) { return false; }
     auto data_idx = index_[k.index].index;

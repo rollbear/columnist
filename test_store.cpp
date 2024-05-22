@@ -14,7 +14,7 @@ TEST_CASE("a default constructed store is empty")
     REQUIRE(s.size() == 0);
 }
 
-TEST_CASE("insert returns the object and the key")
+TEST_CASE("insert returns the object and the handle")
 {
     store<int> s;
     auto i = s.insert(3);
@@ -23,7 +23,7 @@ TEST_CASE("insert returns the object and the key")
     REQUIRE(k.index == 0);
 }
 
-TEST_CASE("erase invalidates the key")
+TEST_CASE("erase invalidates the handle")
 {
     store<int> s;
     auto i1 = s.insert(0);
