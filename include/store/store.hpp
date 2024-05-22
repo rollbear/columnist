@@ -31,12 +31,62 @@ static constexpr size_t type_index<T, T, Ts...> = 0;
 
 } // namespace internal
 
+template <typename Store, typename>
+class row;
+
+template <typename Store, size_t... Is>
+class row<Store, std::index_sequence<Is...>> {
+    friend Store;
+
+public:
+    row() = default;
+
+    Store::handle handle() const { return store_->rindex_[idx_]; }
+
+    template <size_t I>
+        requires(I < sizeof...(Is))
+    friend decltype(auto) get(row r)
+    {
+        using indices = std::tuple<std::integral_constant<size_t, Is>...>;
+        constexpr auto column = std::tuple_element_t<I, indices>::value;
+        auto& element = std::get<column>(r.store_->data_)[r.idx_];
+        if constexpr (std::is_const_v<Store>) {
+            return std::as_const(element);
+        } else {
+            return element;
+        }
+    }
+
+    template <typename... Ts>
+    bool operator==(const std::tuple<Ts...>& rh) const
+    {
+        return std::apply(
+            [this](const auto&... vs) {
+                return ((std::get<Is>(store_->data_)[idx_] == vs) && ...);
+            },
+            rh);
+    }
+
+private:
+    row(Store* store, size_t idx)
+    : store_(store), idx_(idx)
+    {}
+
+    Store* store_ = nullptr;
+    size_t idx_ = 0;
+};
+
 template <typename... Ts>
 class store {
     template <size_t... Is>
     struct selector;
+    template <typename S, typename Is>
+    friend class row;
 
 public:
+    template <size_t I>
+    using element_type = std::tuple_element_t<I, std::tuple<Ts...>>;
+
     struct handle {
         handle next_generation() const
         {
@@ -62,8 +112,6 @@ public:
         size_t size;
     };
 
-    using value_type = std::tuple<const handle&, Ts&...>;
-
     size_t size() const { return rindex_.size(); }
 
     bool empty() const { return size() == 0; }
@@ -79,11 +127,16 @@ public:
 
     bool has_handle(handle k) const;
 
-    std::tuple<Ts&...> operator[](handle k) { return lookup(*this, k); }
-
-    const std::tuple<Ts&...> operator[](handle k) const
+    row<store, std::index_sequence_for<Ts...>> operator[](handle k)
     {
-        return lookup(*this, k);
+        assert(has_handle(k));
+        return { this, index_[k.index].index };
+    }
+
+    row<const store, std::index_sequence_for<Ts...>> operator[](handle k) const
+    {
+        assert(has_handle(k));
+        return { this, index_[k.index].index };
     }
 
     template <size_t... Is>
@@ -141,19 +194,6 @@ private:
         store<Ts...>* s;
     };
 
-    template <typename S>
-    static auto lookup(S&& s, handle k)
-    {
-        assert(k.index < s.index_.size());
-        auto data_idx = s.index_[k.index].index;
-        auto get = [&]<size_t... Is>(std::index_sequence<Is...>,
-                                     uint32_t data_idx) {
-            return std::forward_as_tuple(std::get<Is>(s.data_)[data_idx]...);
-        };
-        return std::invoke(
-            get, std::make_index_sequence<sizeof...(Ts)>{}, data_idx);
-    }
-
     std::tuple<std::vector<internal::type_of_t<Ts>>...> data_;
     std::vector<handle> rindex_;
     std::vector<handle> index_;
@@ -187,14 +227,10 @@ public:
 
     auto operator*() const
     {
-        auto get = [&]<size_t... Is>(std::index_sequence<Is...>) {
-            return std::forward_as_tuple(s->rindex_[idx],
-                                         std::get<Is>(s->data_)[idx]...);
-        };
         if constexpr (sizeof...(Idxs) == 0) {
-            return get(std::make_index_sequence<sizeof...(Ts)>{});
+            return row<store, std::index_sequence_for<Ts...>>(s, idx);
         } else {
-            return get(std::index_sequence<Idxs...>{});
+            return row<store, std::index_sequence<Idxs...>>(s, idx);
         }
     }
 
@@ -294,4 +330,15 @@ bool store<Ts...>::has_handle(handle k) const
 }
 
 } // namespace table
+
+template <std::size_t I, typename S, size_t... Is>
+struct std::tuple_element<I, table::row<S, std::index_sequence<Is...>>> {
+    using type = typename S::template element_type<std::tuple_element_t<
+        I,
+        std::tuple<std::integral_constant<size_t, Is>...>>::value>;
+};
+
+template <typename S, size_t... Is>
+struct std::tuple_size<table::row<S, std::index_sequence<Is...>>>
+: std::integral_constant<size_t, sizeof...(Is)> {};
 #endif // STORE_STORE_HPP
