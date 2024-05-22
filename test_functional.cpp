@@ -113,6 +113,13 @@ TEST_CASE("arg forwarding", "[swizzle]")
     REQUIRE(!can_invoke(std::move(std::as_const(cb)), 3));
 }
 
+TEST_CASE("swizzle is constexpr", "[swizzle]")
+{
+    using store::swizzle;
+    constexpr auto f = swizzle<1, 0>([](int a, int b) { return a - b; });
+    STATIC_REQUIRE(f(5, 2) == -3);
+}
+
 namespace {
 using CT = callable<throwing::do_throw>;
 using CN = callable<throwing::no_throw>;

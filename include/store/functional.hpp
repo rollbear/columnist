@@ -11,7 +11,7 @@ template <typename F, size_t... Is>
 struct swizzle_ {
     template <typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
-    auto operator()(Ts&&... ts) & noexcept(
+    constexpr auto operator()(Ts&&... ts) & noexcept(
         std::is_nothrow_invocable_v<
             F&,
             std::tuple_element_t<Is, std::tuple<Ts...>>...>)
@@ -23,7 +23,7 @@ struct swizzle_ {
 
     template <typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
-    auto operator()(Ts&&... ts) && noexcept(
+    constexpr auto operator()(Ts&&... ts) && noexcept(
         std::is_nothrow_invocable_v<
             F&&,
             std::tuple_element_t<Is, std::tuple<Ts...>>...>)
@@ -35,7 +35,7 @@ struct swizzle_ {
 
     template <typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
-    auto operator()(Ts&&... ts) const& noexcept(
+    constexpr auto operator()(Ts&&... ts) const& noexcept(
         std::is_nothrow_invocable_v<
             const F&,
             std::tuple_element_t<Is, std::tuple<Ts...>>...>)
@@ -47,7 +47,7 @@ struct swizzle_ {
 
     template <typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
-    auto operator()(Ts&&... ts) const&& noexcept(
+    constexpr auto operator()(Ts&&... ts) const&& noexcept(
         std::is_nothrow_invocable_v<
             const F&&,
             std::tuple_element_t<Is, std::tuple<Ts...>>...>)
@@ -58,7 +58,7 @@ struct swizzle_ {
     }
 
     template <typename FF, typename... Ts>
-    static decltype(auto) call(FF&& ff, Ts&&... ts)
+    static constexpr decltype(auto) call(FF&& ff, Ts&&... ts)
     {
         auto tup = std::forward_as_tuple(std::forward<Ts>(ts)...);
         return std::invoke(std::forward<FF>(ff),
