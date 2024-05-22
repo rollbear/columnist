@@ -204,7 +204,9 @@ template <typename... Ts, typename Table, size_t... Is>
 inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
     using TT = std::remove_cvref_t<Table>;
-    return row<Table, std::index_sequence<TT::template type_index<Ts>...>>(r);
+    return select<
+        internal::type_index<Ts, typename TT::template element_type<Is>...>...>(
+        r);
 }
 
 template <typename... Ts>

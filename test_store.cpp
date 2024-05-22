@@ -175,4 +175,14 @@ TEST_CASE("select and subselect")
     auto rdc = table::select<C<3>, C<2>>(rcde);
     REQUIRE(get<0>(rdc) == 'd');
     REQUIRE(get<1>(rdc) == 'c');
+    auto race = table::select<C<0>, C<2>, C<4>>(r1);
+    REQUIRE(get<0>(race) == 'a');
+    REQUIRE(get<1>(race) == 'c');
+    REQUIRE(get<2>(race) == 'e');
+    auto rae = table::select<C<0>, C<4>>(race);
+    REQUIRE(get<0>(rae) == 'a');
+    REQUIRE(get<1>(rae) == 'e');
+    auto [a, e] = rae;
+    REQUIRE(a == 'a');
+    REQUIRE(e == 'e');
 }
