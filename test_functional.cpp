@@ -208,3 +208,9 @@ TEST_CASE("apply a swizzled function", "[swizzle][apply]")
     auto x = apply(f)(std::tuple{ std::make_unique<int>(3), 5 });
     REQUIRE(x == 8);
 }
+
+TEST_CASE("apply is constexpr", "[apply]")
+{
+    constexpr auto a = apply([](int x, int y) { return x - y; });
+    STATIC_REQUIRE(a(std::tuple(5, 2)) == 3);
+}
