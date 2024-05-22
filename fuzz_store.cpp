@@ -78,7 +78,7 @@ void fuzz(generator g)
                 if (!v->empty()) {
                     auto idx = get_idx();
                     auto k = keys[idx];
-                    assert(v->has_key(k));
+                    assert(v->has_handle(k));
                     v->erase(k);
                     --elems;
                     retired_keys.push_back(k);
@@ -92,7 +92,7 @@ void fuzz(generator g)
                 if (!v->empty()) {
                     auto idx = get_idx();
                     auto k = keys[idx];
-                    assert(v->has_key(k));
+                    assert(v->has_handle(k));
                     auto& p = std::get<0>((*v)[k]);
                     assert(p->idx == k.index);
                     assert(p->gen == k.generation);

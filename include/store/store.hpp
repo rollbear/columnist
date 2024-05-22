@@ -176,7 +176,7 @@ public:
     template <size_t... Is>
     void erase(iterator<Is...> i);
 
-    bool has_key(handle k) const;
+    bool has_handle(handle k) const;
 
     std::tuple<Ts&...> operator[](handle k) { return lookup(*this, k); }
 
@@ -354,7 +354,7 @@ void store<Ts...>::erase(iterator<Is...> i)
 }
 
 template <typename... Ts>
-bool store<Ts...>::has_key(handle k) const
+bool store<Ts...>::has_handle(handle k) const
 {
     if (k.index >= index_.size()) { return false; }
     auto data_idx = index_[k.index].index;

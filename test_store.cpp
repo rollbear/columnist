@@ -28,8 +28,8 @@ TEST_CASE("erase invalidates the handle")
     auto h1 = s.insert(0);
     auto h2 = s.insert(1);
     s.erase(h1);
-    REQUIRE(s.has_key(h2));
-    REQUIRE(!s.has_key(h1));
+    REQUIRE(s.has_handle(h2));
+    REQUIRE(!s.has_handle(h1));
     REQUIRE(std::get<0>(s[h2]) == 1);
     REQUIRE(s.size() == 1);
 }
@@ -67,8 +67,8 @@ TEST_CASE("indexes aren't reused, their generation shifts")
     auto hq = s.insert(2);
     REQUIRE(hp != hq);
     REQUIRE(hp.index == hq.index);
-    REQUIRE(s.has_key(hq));
-    REQUIRE(!s.has_key(hp));
+    REQUIRE(s.has_handle(hq));
+    REQUIRE(!s.has_handle(hp));
 }
 
 TEST_CASE("pluralized")
