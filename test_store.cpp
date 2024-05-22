@@ -108,3 +108,38 @@ TEST_CASE("named columns")
     }
     REQUIRE(expected.empty());
 }
+
+TEST_CASE("erase_if")
+{
+    using table::column::named_type;
+    store<named_type<"number", int>, named_type<"name", std::string>> s;
+    s.insert(1, "one");
+    s.insert(2, "two");
+    s.insert(3, "three");
+    s.insert(4, "four");
+    s.insert(5, "five");
+    s.insert(6, "six");
+    {
+        auto count
+            = erase_if(s, [](auto&& t) { return (std::get<1>(t) % 2) == 0; });
+        REQUIRE(count == 3);
+        std::set<std::tuple<int, std::string>> expected{ { 1, "one" },
+                                                         { 3, "three" },
+                                                         { 5, "five" } };
+        for (auto [h, num, name] : s) {
+            auto i = expected.find({ num, name });
+            REQUIRE(i != expected.end());
+            expected.erase(i);
+        }
+        REQUIRE(expected.empty());
+    }
+    {
+        auto count = erase_if(select<"number">(s),
+                              [](auto&& t) { return std::get<1>(t) > 1; });
+        REQUIRE(count == 2);
+        REQUIRE(s.size() == 1);
+        auto [handle, num, name] = *s.begin();
+        REQUIRE(num == 1);
+        REQUIRE(name == "one");
+    }
+}

@@ -4,7 +4,9 @@
 #include <cassert>
 #include <cstdint>
 #include <functional>
+#include <ranges>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace table {
@@ -202,9 +204,35 @@ public:
         return selector<internal::type_index<Us, Ts...>...>{ &s };
     }
 
+    template <typename P>
+    friend size_t erase_if(store& s, P p)
+    {
+        return erase_if(s.begin(), s, p);
+    }
+
 private:
+    template <typename P, typename S, size_t... Is>
+    friend size_t erase_if(iterator<Is...> i, S& s, P p)
+    {
+        size_t rv = 0;
+        while (i != s.end()) {
+            if (p(*i)) {
+                ++rv;
+                s.erase(i);
+            } else {
+                ++i;
+            }
+        }
+        return rv;
+    }
+
     template <size_t... Is>
     struct selector {
+        friend size_t erase_if(selector sel, auto p)
+        {
+            return erase_if(sel.begin(), *sel.s, p);
+        }
+
         auto begin() { return s->begin<Is...>(); }
 
         auto end() { return s->end(); }
@@ -361,5 +389,6 @@ bool store<Ts...>::has_handle(handle k) const
     if (data_idx >= rindex_.size()) { return false; }
     return rindex_[data_idx] == k;
 }
+
 } // namespace table
 #endif // STORE_STORE_HPP
