@@ -148,3 +148,31 @@ TEST_CASE("erase_if")
         REQUIRE(name == "one");
     }
 }
+
+template <size_t I>
+struct C {
+    char c;
+
+    operator char() const { return c; }
+};
+
+TEST_CASE("select and subselect")
+{
+    store<C<0>, C<1>, C<2>, C<3>, C<4>> s;
+    s.insert('a', 'b', 'c', 'd', 'e');
+    auto r1 = *s.begin();
+    auto rcde_num = table::select<2, 3, 4>(r1);
+    REQUIRE(get<0>(rcde_num) == 'c');
+    REQUIRE(get<1>(rcde_num) == 'd');
+    REQUIRE(get<2>(rcde_num) == 'e');
+    auto rdc_num = table::select<1, 0>(rcde_num);
+    REQUIRE(get<0>(rdc_num) == 'd');
+    REQUIRE(get<1>(rdc_num) == 'c');
+    auto rcde = table::select<C<2>, C<3>, C<4>>(r1);
+    REQUIRE(get<0>(rcde) == 'c');
+    REQUIRE(get<1>(rcde) == 'd');
+    REQUIRE(get<2>(rcde) == 'e');
+    auto rdc = table::select<C<3>, C<2>>(rcde);
+    REQUIRE(get<0>(rdc) == 'd');
+    REQUIRE(get<1>(rdc) == 'c');
+}
