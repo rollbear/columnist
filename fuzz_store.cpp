@@ -46,8 +46,8 @@ void fuzz(generator g)
 
     using T = store<std::unique_ptr<K>>;
     std::optional<T> v;
-    std::vector<T::handle> keys;
-    std::deque<T::handle> retired_keys;
+    std::vector<T::row_id> keys;
+    std::deque<T::row_id> retired_keys;
 
     try {
         size_t elems = 0;
@@ -79,7 +79,7 @@ void fuzz(generator g)
                 if (!v->empty()) {
                     auto idx = get_idx();
                     auto k = keys[idx];
-                    assert(v->has_handle(k));
+                    assert(v->has_row_id(k));
                     v->erase(k);
                     --elems;
                     retired_keys.push_back(k);
@@ -93,7 +93,7 @@ void fuzz(generator g)
                 if (!v->empty()) {
                     auto idx = get_idx();
                     auto k = keys[idx];
-                    assert(v->has_handle(k));
+                    assert(v->has_row_id(k));
                     auto& p = get<0>((*v)[k]);
                     assert(p->idx == k.index);
                     assert(p->gen == k.generation);
@@ -103,7 +103,7 @@ void fuzz(generator g)
             case 5: {
                 size_t count = 0;
                 for (auto i = v->begin(); i != v->end(); ++i) {
-                    auto k = (*i).handle();
+                    auto k = (*i).row_id();
                     auto [val] = *i;
                     assert(val->gen == k.generation);
                     assert(val->idx == k.index);

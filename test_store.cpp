@@ -14,7 +14,7 @@ TEST_CASE("a default constructed store is empty")
     REQUIRE(s.size() == 0);
 }
 
-TEST_CASE("insert returns the object and the handle")
+TEST_CASE("insert returns the object and the row_id")
 {
     store<int> s;
     auto h = s.insert(3);
@@ -22,14 +22,14 @@ TEST_CASE("insert returns the object and the handle")
     REQUIRE(h.index == 0);
 }
 
-TEST_CASE("erase invalidates the handle")
+TEST_CASE("erase invalidates the row_id")
 {
     store<int> s;
     auto h1 = s.insert(0);
     auto h2 = s.insert(1);
     s.erase(h1);
-    REQUIRE(s.has_handle(h2));
-    REQUIRE(!s.has_handle(h1));
+    REQUIRE(s.has_row_id(h2));
+    REQUIRE(!s.has_row_id(h1));
     REQUIRE(get<0>(s[h2]) == 1);
     REQUIRE(s.size() == 1);
 }
@@ -58,7 +58,7 @@ TEST_CASE("iteration")
                 for (auto i = s.begin(); i != s.end(); ++i) {
                     auto r = *i;
                     auto [v] = r;
-                    auto h = r.handle();
+                    auto h = r.row_id();
                     auto vi = values.find(v);
                     REQUIRE(vi != values.end());
                     values.erase(vi);
@@ -73,7 +73,7 @@ TEST_CASE("iteration")
             {
                 for (auto r : s) {
                     auto [v] = r;
-                    auto h = r.handle();
+                    auto h = r.row_id();
                     auto i = values.find(v);
                     REQUIRE(i != values.end());
                     values.erase(i);
@@ -94,8 +94,8 @@ TEST_CASE("indexes aren't reused, their generation shifts")
     auto hq = s.insert(2);
     REQUIRE(hp != hq);
     REQUIRE(hp.index == hq.index);
-    REQUIRE(s.has_handle(hq));
-    REQUIRE(!s.has_handle(hp));
+    REQUIRE(s.has_row_id(hq));
+    REQUIRE(!s.has_row_id(hp));
 }
 
 TEST_CASE("pluralized")

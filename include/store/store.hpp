@@ -41,7 +41,7 @@ class row<Store, std::index_sequence<Is...>> {
 public:
     row() = default;
 
-    Store::handle handle() const { return store_->rindex_[idx_]; }
+    Store::row_id row_id() const { return store_->rindex_[idx_]; }
 
     template <size_t I>
         requires(I < sizeof...(Is))
@@ -87,19 +87,19 @@ public:
     template <size_t I>
     using element_type = std::tuple_element_t<I, std::tuple<Ts...>>;
 
-    struct handle {
-        handle next_generation() const
+    struct row_id {
+        row_id next_generation() const
         {
             auto copy = *this;
             ++copy.generation;
             return copy;
         }
 
-        constexpr handle(uint32_t i, uint8_t g = 0)
+        constexpr row_id(uint32_t i, uint8_t g = 0)
         : index(i & ((1U << 24) - 1)), generation(g)
         {}
 
-        bool operator==(const handle&) const = default;
+        bool operator==(const row_id&) const = default;
 
         uint32_t index: 24;
         uint8_t generation;
@@ -117,25 +117,25 @@ public:
     bool empty() const { return size() == 0; }
 
     template <typename... Us>
-    auto insert(Us&&... us) -> handle
+    auto insert(Us&&... us) -> row_id
         requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...);
 
-    void erase(handle);
+    void erase(row_id);
 
     template <size_t... Is>
     void erase(iterator<Is...> i);
 
-    bool has_handle(handle k) const;
+    bool has_row_id(row_id k) const;
 
-    row<store, std::index_sequence_for<Ts...>> operator[](handle k)
+    row<store, std::index_sequence_for<Ts...>> operator[](row_id k)
     {
-        assert(has_handle(k));
+        assert(has_row_id(k));
         return { this, index_[k.index].index };
     }
 
-    row<const store, std::index_sequence_for<Ts...>> operator[](handle k) const
+    row<const store, std::index_sequence_for<Ts...>> operator[](row_id k) const
     {
-        assert(has_handle(k));
+        assert(has_row_id(k));
         return { this, index_[k.index].index };
     }
 
@@ -195,9 +195,9 @@ private:
     };
 
     std::tuple<std::vector<internal::type_of_t<Ts>>...> data_;
-    std::vector<handle> rindex_;
-    std::vector<handle> index_;
-    handle first_free_ = { 0, 0 };
+    std::vector<row_id> rindex_;
+    std::vector<row_id> index_;
+    row_id first_free_ = { 0, 0 };
 };
 
 template <typename... Ts>
@@ -266,7 +266,7 @@ auto store<Ts...>::end() -> sentinel
 
 template <typename... Ts>
 template <typename... Us>
-auto store<Ts...>::insert(Us&&... us) -> handle
+auto store<Ts...>::insert(Us&&... us) -> row_id
     requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...)
 {
     auto data_idx = static_cast<uint32_t>(rindex_.size());
@@ -280,7 +280,7 @@ auto store<Ts...>::insert(Us&&... us) -> handle
     if (first_free_.index == index_.size()) {
         rindex_.push_back(first_free_);
         index_.push_back({ data_idx, 0 });
-        first_free_ = handle(static_cast<uint32_t>(index_.size()));
+        first_free_ = row_id(static_cast<uint32_t>(index_.size()));
         return index_.back();
     } else {
         auto index_pos = std::exchange(first_free_, index_[first_free_.index]);
@@ -291,7 +291,7 @@ auto store<Ts...>::insert(Us&&... us) -> handle
 }
 
 template <typename... Ts>
-void store<Ts...>::erase(handle k)
+void store<Ts...>::erase(row_id k)
 {
     assert(k.index < index_.size());
     auto data_idx = index_[k.index].index;
@@ -321,7 +321,7 @@ void store<Ts...>::erase(iterator<Is...> i)
 }
 
 template <typename... Ts>
-bool store<Ts...>::has_handle(handle k) const
+bool store<Ts...>::has_row_id(row_id k) const
 {
     if (k.index >= index_.size()) { return false; }
     auto data_idx = index_[k.index].index;
