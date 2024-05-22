@@ -69,6 +69,13 @@ public:
         return std::apply(elementwise_equality, rh);
     }
 
+    template <typename S>
+        requires(std::is_same_v<const S&, const Store&>)
+    bool operator==(const row<S, std::index_sequence<Is...>>& rh) const noexcept
+    {
+        return store_ == rh.store_ && idx_ == rh.idx_;
+    }
+
 private:
     row(Store* store, size_t idx)
     : store_(store), idx_(idx)
@@ -107,7 +114,11 @@ public:
         uint8_t generation;
     };
 
-    class iterator;
+    template <typename T>
+    class iterator_t;
+
+    using iterator = iterator_t<table>;
+    using const_iterator = iterator_t<const table>;
 
     struct sentinel {
         size_t size;
@@ -140,8 +151,10 @@ public:
     }
 
     iterator begin();
-
-    sentinel end();
+    const_iterator begin() const;
+    const_iterator cbegin() const;
+    sentinel end() const;
+    sentinel cend() const;
 
     template <typename P>
     friend size_t erase_if(table& s, P p)
@@ -183,6 +196,8 @@ struct selector {
     T t;
 };
 
+inline constexpr auto identity = [](auto t) { return t; };
+
 template <size_t... Is, typename F>
 inline constexpr auto select(F f)
 {
@@ -222,46 +237,61 @@ inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 }
 
 template <typename... Ts>
-class table<Ts...>::iterator {
+template <typename T>
+class table<Ts...>::iterator_t {
     friend class table<Ts...>;
 
 public:
     using iterator_category = std::forward_iterator_tag;
-    using value_type = row<table, std::index_sequence_for<Ts...>>;
+    using value_type = row<T, std::index_sequence_for<Ts...>>;
     using reference = value_type;
     using pointer = void;
     using difference_type = ssize_t;
-    bool operator==(const iterator&) const = default;
 
-    bool operator==(sentinel end) const { return idx == end.size; }
-
-    iterator& operator++()
+    template <typename TT>
+        requires(std::is_same_v<const T, TT>)
+    iterator_t& operator=(const iterator_t<TT>& tt) noexcept
     {
-        ++idx;
+        table_ = tt.table_;
+        idx_ = tt.idx_;
+    }
+
+    template <typename TT>
+        requires(std::is_same_v<const TT, const T>)
+    bool operator==(const iterator_t<TT>& rh) const noexcept
+    {
+        return table_ == rh.table_ && idx_ == rh.idx_;
+    };
+
+    bool operator==(sentinel end) const noexcept { return idx_ == end.size; }
+
+    iterator_t& operator++() noexcept
+    {
+        ++idx_;
         return *this;
     }
 
-    iterator operator++(int)
+    iterator_t operator++(int) noexcept
     {
         auto copy = *this;
         ++*this;
         return copy;
     }
 
-    auto operator*() const
+    auto operator*() const noexcept
     {
-        return row<table, std::index_sequence_for<Ts...>>(s, idx);
+        return row<T, std::index_sequence_for<Ts...>>(table_, idx_);
     }
 
-    iterator(){};
+    iterator_t() = default;
 
 private:
-    iterator(table<Ts...>* s, size_t idx)
-    : s(s), idx(idx)
+    iterator_t(T* s, size_t idx)
+    : table_(s), idx_(idx)
     {}
 
-    table<Ts...>* s = nullptr;
-    size_t idx = 0;
+    T* table_ = nullptr;
+    size_t idx_ = 0;
 };
 
 template <typename... Ts>
@@ -271,7 +301,25 @@ auto table<Ts...>::begin() -> iterator
 }
 
 template <typename... Ts>
-auto table<Ts...>::end() -> sentinel
+auto table<Ts...>::begin() const -> const_iterator
+{
+    return { this, 0 };
+}
+
+template <typename... Ts>
+auto table<Ts...>::cbegin() const -> const_iterator
+{
+    return { this, 0 };
+}
+
+template <typename... Ts>
+auto table<Ts...>::end() const -> sentinel
+{
+    return { rindex_.size() };
+}
+
+template <typename... Ts>
+auto table<Ts...>::cend() const -> sentinel
 {
     return { rindex_.size() };
 }
@@ -333,8 +381,8 @@ void table<Ts...>::erase(row_id k)
 template <typename... Ts>
 void table<Ts...>::erase(iterator i)
 {
-    assert(i.s == this);
-    erase(rindex_[i.idx]);
+    assert(i.table_ == this);
+    erase(rindex_[i.idx_]);
 }
 
 template <typename... Ts>
@@ -350,9 +398,11 @@ bool table<Ts...>::has_row_id(row_id k) const
 
 template <std::size_t I, typename S, size_t... Is>
 struct std::tuple_element<I, columnist::row<S, std::index_sequence<Is...>>> {
-    using type = typename S::template element_type<std::tuple_element_t<
+    using basic_type = typename S::template element_type<std::tuple_element_t<
         I,
         std::tuple<std::integral_constant<size_t, Is>...>>::value>;
+    using type = std::
+        conditional_t<std::is_const_v<S>, const basic_type&, basic_type&>;
 };
 
 template <typename S, size_t... Is>

@@ -5,8 +5,46 @@
 #include <iostream>
 #include <map>
 #include <set>
-
 using columnist::table;
+
+using table_ids = columnist::table<int, double, std::string>;
+
+template <typename T, typename U = T, typename = void>
+struct is_nothrow_comparable {
+    inline static constexpr bool value = false;
+};
+
+template <typename T, typename U>
+struct is_nothrow_comparable<
+    T,
+    U,
+    std::void_t<decltype(std::declval<T>() == std::declval<U>())>> {
+    inline static constexpr bool value
+        = noexcept(std::declval<T>() == std::declval<U>());
+};
+
+template <typename T, typename U = T>
+inline constexpr bool is_nothrow_comparable_v
+    = is_nothrow_comparable<T, U>::value;
+
+static_assert(std::is_nothrow_assignable_v<typename table_ids::iterator&,
+                                           typename table_ids::const_iterator>);
+static_assert(
+    not std::is_nothrow_assignable_v<typename table_ids::const_iterator&,
+                                     typename table_ids::iterator>);
+
+static_assert(is_nothrow_comparable_v<typename table_ids::iterator>);
+static_assert(is_nothrow_comparable_v<typename table_ids::iterator,
+                                      typename table_ids::const_iterator>);
+static_assert(is_nothrow_comparable_v<typename table_ids::const_iterator,
+                                      typename table_ids::iterator>);
+static_assert(is_nothrow_comparable_v<typename table_ids::const_iterator>);
+static_assert(is_nothrow_comparable_v<typename table_ids::iterator,
+                                      typename table_ids::sentinel>);
+static_assert(is_nothrow_comparable_v<typename table_ids::const_iterator,
+                                      typename table_ids::sentinel>);
+static_assert(is_nothrow_comparable_v<typename table_ids::iterator,
+                                      typename table_ids::iterator>);
 
 TEST_CASE("a default constructed columnist is empty")
 {
@@ -68,11 +106,39 @@ TEST_CASE("iteration")
                 REQUIRE(values.empty());
             }
         }
+        AND_WHEN("iterating with mixed const_iterator and iterator")
+        {
+            THEN("they refer to the same values")
+            {
+                for (auto [i, ci] = std::tuple(s.begin(), s.cbegin());
+                     ci != s.cend();
+                     ++i, ++ci) {
+                    REQUIRE(*i == *ci);
+                    REQUIRE((*i).row_id() == (*ci).row_id());
+                }
+            }
+        }
         AND_WHEN("iterating with range for")
         {
             THEN("all values appear")
             {
                 for (auto r : s) {
+                    auto [v] = r;
+                    auto h = r.row_id();
+                    auto i = values.find(v);
+                    REQUIRE(i != values.end());
+                    values.erase(i);
+                    REQUIRE(get<0>(s[h]) == v);
+                    std::cerr << h.index << ' ' << v << '\n';
+                }
+                REQUIRE(values.empty());
+            }
+        }
+        AND_WHEN("iterating with range for over a const table")
+        {
+            THEN("all values appear")
+            {
+                for (auto r : std::as_const(s)) {
                     auto [v] = r;
                     auto h = r.row_id();
                     auto i = values.find(v);
