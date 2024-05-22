@@ -1,6 +1,8 @@
 #ifndef STORE_TABLE_HPP
 #define STORE_TABLE_HPP
 
+#include "type_utils.hpp"
+
 #include <cassert>
 #include <cstdint>
 #include <functional>
@@ -22,15 +24,6 @@ template <typename T>
 using type_of_t = typename type_of<T>::type;
 
 static_assert(std::is_same_v<int, type_of_t<int>>);
-
-template <typename T, typename, typename... Ts>
-static constexpr size_t type_index = 1 + type_index<T, Ts...>;
-
-template <typename T, typename... Ts>
-static constexpr size_t type_index<T, T, Ts...> = 0;
-
-template <typename T, typename... Ts>
-inline constexpr bool type_is_one_of = (std::is_same_v<T, Ts> || ...);
 
 } // namespace internal
 
@@ -94,7 +87,7 @@ public:
     template <size_t I>
     using element_type = std::tuple_element_t<I, std::tuple<Ts...>>;
     template <typename T>
-    static constexpr size_t type_index = internal::type_index<T, Ts...>;
+    static constexpr size_t type_index = columnist::type_index<T, Ts...>;
 
     struct row_id {
         row_id next_generation() const
@@ -216,16 +209,13 @@ inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
     using TT = std::remove_cvref_t<Table>;
     constexpr bool valid_types
-        = (internal::type_is_one_of<Ts,
-                                    typename TT::template element_type<Is>...>
+        = (type_is_one_of<Ts, typename TT::template element_type<Is>...>
            && ...);
     static_assert(valid_types,
                   "Valid types are those represented by the row instance");
     if constexpr (valid_types) {
         return select<
-            internal::type_index<Ts,
-                                 typename TT::template element_type<Is>...>...>(
-            r);
+            type_index<Ts, typename TT::template element_type<Is>...>...>(r);
     } else {
         return row<Table, std::index_sequence<>>{};
     }
