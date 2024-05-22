@@ -114,40 +114,72 @@ TEST_CASE("arg forwarding", "[swizzle]")
 }
 
 namespace {
-struct S {
-    int& operator()(std::unique_ptr<int> a, int& b) && { return b += *a; }
-};
-
-using T = std::tuple<std::unique_ptr<int>, int&>;
-
+using CT = callable<throwing::do_throw>;
+using CN = callable<throwing::no_throw>;
+using T = std::tuple<std::unique_ptr<int>, int>;
 using store::apply;
-static_assert(!std::is_invocable_v<decltype(apply(S{}))&, T&&>);
-static_assert(std::is_invocable_v<decltype(apply(S{}))&&, T&&>);
-static_assert(std::is_invocable_v<decltype(apply(S{})), T&&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})) const&, T&&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})) const&&, T&&>);
-static_assert(!std::is_invocable_v<const decltype(apply(S{})), T&&>);
+static_assert(std::is_nothrow_invocable_v<decltype(apply(CN{}))&, T&&>);
+static_assert(!std::is_nothrow_invocable_v<decltype(apply(CT{}))&, T&&>);
+static_assert(std::is_invocable_v<decltype(apply(CT{}))&, T&&>);
 
-static_assert(!std::is_invocable_v<decltype(apply(S{}))&, T&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{}))&&, T&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})), T&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})) const&, T&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})) const&&, T&>);
-static_assert(!std::is_invocable_v<const decltype(apply(S{})), T&>);
+static_assert(std::is_nothrow_invocable_v<decltype(apply(CN{}))&&, T&&>);
+static_assert(!std::is_nothrow_invocable_v<decltype(apply(CT{}))&&, T&&>);
+static_assert(std::is_invocable_v<decltype(apply(CT{}))&&, T&&>);
 
-static_assert(!std::is_invocable_v<decltype(apply(S{}))&, const T&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{}))&&, const T&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})), const T&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})) const&, const T&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})) const&&, const T&>);
-static_assert(!std::is_invocable_v<const decltype(apply(S{})), const T&>);
+static_assert(std::is_nothrow_invocable_v<decltype(apply(CN{})), T&&>);
+static_assert(!std::is_nothrow_invocable_v<decltype(apply(CT{})), T&&>);
+static_assert(std::is_invocable_v<decltype(apply(CT{})), T&&>);
 
-static_assert(!std::is_invocable_v<decltype(apply(S{}))&, const T&&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{}))&&, const T&&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})), const T&&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})) const&, const T&&>);
-static_assert(!std::is_invocable_v<decltype(apply(S{})) const&&, const T&&>);
-static_assert(!std::is_invocable_v<const decltype(apply(S{})), const T&&>);
+static_assert(std::is_nothrow_invocable_v<decltype(apply(CN{})) const&, T&&>);
+static_assert(!std::is_nothrow_invocable_v<decltype(apply(CT{})) const&, T&&>);
+static_assert(std::is_invocable_v<decltype(apply(CT{})) const&, T&&>);
+
+static_assert(std::is_nothrow_invocable_v<decltype(apply(CN{})) const&&, T&&>);
+static_assert(!std::is_nothrow_invocable_v<decltype(apply(CT{})) const&&, T&&>);
+static_assert(std::is_invocable_v<decltype(apply(CT{})) const&&, T&&>);
+
+static_assert(std::is_nothrow_invocable_v<const decltype(apply(CN{})), T&&>);
+static_assert(!std::is_nothrow_invocable_v<const decltype(apply(CT{})), T&&>);
+static_assert(std::is_invocable_v<const decltype(apply(CT{})), T&&>);
+
+static_assert(!std::is_invocable_v<decltype(apply(CN{}))&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{}))&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{}))&&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{}))&&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{})), T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{})), T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{})) const&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{})) const&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{})) const&&, T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{})) const&&, T&>);
+static_assert(!std::is_invocable_v<const decltype(apply(CN{})), T&>);
+static_assert(!std::is_invocable_v<const decltype(apply(CT{})), T&>);
+
+static_assert(!std::is_invocable_v<decltype(apply(CN{}))&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{}))&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{}))&&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{}))&&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{})), const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{})), const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{})) const&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{})) const&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{})) const&&, const T&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{})) const&&, const T&>);
+static_assert(!std::is_invocable_v<const decltype(apply(CN{})), const T&>);
+static_assert(!std::is_invocable_v<const decltype(apply(CT{})), const T&>);
+
+static_assert(!std::is_invocable_v<decltype(apply(CN{}))&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{}))&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{}))&&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{}))&&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{})), const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{})), const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{})) const&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{})) const&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(CN{})) const&&, const T&&>);
+static_assert(!std::is_invocable_v<decltype(apply(CT{})) const&&, const T&&>);
+static_assert(!std::is_invocable_v<const decltype(apply(CN{})), const T&&>);
+static_assert(!std::is_invocable_v<const decltype(apply(CT{})), const T&&>);
 
 } // namespace
 

@@ -121,28 +121,32 @@ concept appliccable = std::invoke(
 template <typename F>
 struct apply_ {
     template <appliccable<F&> T>
-    constexpr decltype(auto) operator()(T&& t) &
+    constexpr decltype(auto) operator()(T&& t) & noexcept(
+        noexcept(std::apply(f, std::forward<internal::as_tuple<T>>(t))))
     {
         using TT = internal::as_tuple<T>;
         return std::apply(f, std::forward<TT>(t));
     }
 
     template <appliccable<F&&> T>
-    constexpr decltype(auto) operator()(T&& t) &&
+    constexpr decltype(auto) operator()(T&& t) && noexcept(noexcept(
+        std::apply(std::move(f), std::forward<internal::as_tuple<T>>(t))))
     {
         using TT = internal::as_tuple<T>;
         return std::apply(std::move(f), std::forward<TT>(t));
     }
 
     template <appliccable<const F&> T>
-    constexpr decltype(auto) operator()(T&& t) const&
+    constexpr decltype(auto) operator()(T&& t) const& noexcept(
+        noexcept(std::apply(f, std::forward<internal::as_tuple<T>>(t))))
     {
         using TT = internal::as_tuple<T>;
-        return std::apply(std::as_const(f), std::forward<TT>(t));
+        return std::apply(f, std::forward<TT>(t));
     }
 
     template <appliccable<const F&&> T>
-    constexpr decltype(auto) operator()(T&& t) const&&
+    constexpr decltype(auto) operator()(T&& t) const&& noexcept(noexcept(
+        std::apply(std::move(f), std::forward<internal::as_tuple<T>>(t))))
     {
         using TT = internal::as_tuple<T>;
         return std::apply(std::move(f), std::forward<TT>(t));
