@@ -111,8 +111,7 @@ public:
         uint8_t generation;
     };
 
-    template <size_t... Is>
-    struct iterator;
+    class iterator;
 
     struct sentinel {
         size_t size;
@@ -128,8 +127,7 @@ public:
 
     void erase(row_id);
 
-    template <size_t... Is>
-    void erase(iterator<Is...> i);
+    void erase(iterator i);
 
     bool has_row_id(row_id k) const;
 
@@ -145,10 +143,7 @@ public:
         return { this, index_[k.index].index };
     }
 
-    template <size_t... Is>
-    iterator<Is...> begin();
-
-    iterator<> begin();
+    iterator begin();
 
     sentinel end();
 
@@ -189,18 +184,6 @@ struct selector {
         return f(Idxs{});
     }
 
-    template <typename TT = T>
-    auto begin() -> decltype(std::declval<TT&>().template begin<Is...>())
-    {
-        return t.template begin<Is...>();
-    }
-
-    template <typename TT = T>
-    auto end() -> decltype(std::declval<TT&>().template end<Is...>())
-    {
-        return t.template end<Is...>();
-    }
-
     T t;
 };
 
@@ -210,32 +193,29 @@ inline constexpr auto select(F f)
     return selector<F, Is...>{ f };
 };
 
-template <typename... Ts, typename T>
-inline constexpr auto select(T&& t)
-    requires requires(T& t) { t.template begin<0>(); }
+template <size_t... Ins, typename... Ts, typename Table, size_t... Is>
+inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
-    using TT = std::remove_cvref_t<T>;
-    return selector<T, TT::template type_index<Ts>...>{ std::forward<T>(t) };
+    constexpr auto indexes = std::array{ Is... };
+    return row<Table, std::index_sequence<indexes[Ins]...>>{ r };
 }
 
 template <typename... Ts, typename Table, size_t... Is>
 inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
     using TT = std::remove_cvref_t<Table>;
-    return row<Table, std::index_sequence<TT::template type_index<Ts>...>>{ r };
+    return select<TT::template type_index<Ts>...>(r);
 }
 
 template <typename... Ts>
-template <size_t... Idxs>
 class store<Ts...>::iterator {
     friend class store<Ts...>;
 
 public:
     using iterator_category = std::forward_iterator_tag;
-
     bool operator==(const iterator&) const = default;
 
-    bool operator==(sentinel s) const { return idx == s.size; }
+    bool operator==(sentinel end) const { return idx == end.size; }
 
     iterator& operator++()
     {
@@ -252,11 +232,7 @@ public:
 
     auto operator*() const
     {
-        if constexpr (sizeof...(Idxs) == 0) {
-            return row<store, std::index_sequence_for<Ts...>>(s, idx);
-        } else {
-            return row<store, std::index_sequence<Idxs...>>(s, idx);
-        }
+        return row<store, std::index_sequence_for<Ts...>>(s, idx);
     }
 
     iterator(){};
@@ -271,14 +247,7 @@ private:
 };
 
 template <typename... Ts>
-template <size_t... Is>
-auto store<Ts...>::begin() -> iterator<Is...>
-{
-    return { this, 0 };
-}
-
-template <typename... Ts>
-auto store<Ts...>::begin() -> iterator<>
+auto store<Ts...>::begin() -> iterator
 {
     return { this, 0 };
 }
@@ -344,8 +313,7 @@ void store<Ts...>::erase(row_id k)
 }
 
 template <typename... Ts>
-template <size_t... Is>
-void store<Ts...>::erase(iterator<Is...> i)
+void store<Ts...>::erase(iterator i)
 {
     assert(i.s == this);
     erase(rindex_[i.idx]);
