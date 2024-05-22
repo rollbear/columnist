@@ -25,7 +25,8 @@ target_link_libraries(test_store
 store::store
 Catch2::Catch2WithMain)
 
-add_executable(fuzz_store fuzz_store.cpp)
+add_executable(fuzz_store fuzz_store.cpp
+)
 target_compile_options(fuzz_store PRIVATE "-fsanitize=fuzzer,address,undefined")
 target_link_options(fuzz_store PRIVATE "-fsanitize=fuzzer,address,undefined")
 target_link_libraries(fuzz_store store::store)
