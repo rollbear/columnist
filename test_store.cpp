@@ -87,4 +87,10 @@ TEST_CASE("pluralized")
     REQUIRE(s[k1] == std::tuple(3, "foo"));
     REQUIRE(s[k2] == std::tuple(5, "bar"));
     s.erase(k1);
+    REQUIRE(std::get<1>(*s.begin<1>()) == "bar");
+    REQUIRE(std::get<1>(*s.begin<0>()) == 5);
+    REQUIRE(std::get<1>(*select<1>(s).begin()) == "bar");
+    REQUIRE(std::get<1>(*select<0>(s).begin()) == 5);
+    REQUIRE(std::get<1>(*select<std::string>(s).begin()) == "bar");
+    REQUIRE(std::get<1>(*select<int>(s).begin()) == 5);
 }

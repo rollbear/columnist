@@ -7,6 +7,12 @@
 #include <tuple>
 #include <vector>
 
+template <typename T, typename, typename... Ts>
+static constexpr size_t type_index = 1 + type_index<T, Ts...>;
+
+template <typename T, typename... Ts>
+static constexpr size_t type_index<T, T, Ts...> = 0;
+
 template <typename... Ts>
 class store {
 public:
@@ -26,7 +32,13 @@ public:
         uint32_t index: 24;
         uint8_t generation;
     };
+    template <size_t... Is>
     struct iterator;
+
+    struct sentinel {
+        size_t size;
+    };
+
     using value_type = std::tuple<const key&, Ts&...>;
 
     size_t size() const { return rindex_.size(); }
@@ -34,11 +46,12 @@ public:
     bool empty() const { return size() == 0; }
 
     template <typename... Us>
-    auto insert(Us&&... us) -> iterator
+    auto insert(Us&&... us) -> iterator<>
         requires(std::is_constructible_v<Ts, Us> && ...);
 
     void erase(key);
-    void erase(iterator i);
+    template <size_t... Is>
+    void erase(iterator<Is...> i);
 
     bool has_key(key k) const;
 
@@ -49,10 +62,33 @@ public:
         return lookup(*this, k);
     }
 
-    iterator begin();
-    iterator end();
+    template <size_t... Is>
+    iterator<Is...> begin();
+    iterator<> begin();
+    sentinel end();
+
+    template <size_t... Is>
+    friend auto select(store& s)
+    {
+        return selector<Is...>{ &s };
+    }
+
+    template <typename... Us>
+    friend auto select(store& s)
+    {
+        return selector<type_index<Us, Ts...>...>{ &s };
+    }
 
 private:
+    template <size_t... Is>
+    struct selector {
+        auto begin() { return s->begin<Is...>(); }
+
+        auto end() { return s->end(); }
+
+        store<Ts...>* s;
+    };
+
     template <typename S>
     static auto lookup(S&& s, key k)
     {
@@ -73,12 +109,15 @@ private:
 };
 
 template <typename... Ts>
+template <size_t... Idxs>
 class store<Ts...>::iterator {
     friend class store<Ts...>;
 
 public:
     using iterator_category = std::forward_iterator_tag;
     bool operator==(const iterator&) const = default;
+
+    bool operator==(sentinel s) const { return idx == s.size; }
 
     iterator& operator++()
     {
@@ -93,13 +132,17 @@ public:
         return copy;
     }
 
-    store<Ts...>::value_type operator*() const
+    auto operator*() const
     {
         auto get = [&]<size_t... Is>(std::index_sequence<Is...>) {
             return std::forward_as_tuple(s->rindex_[idx],
                                          std::get<Is>(s->data_)[idx]...);
         };
-        return get(std::make_index_sequence<sizeof...(Ts)>{});
+        if constexpr (sizeof...(Idxs) == 0) {
+            return get(std::make_index_sequence<sizeof...(Ts)>{});
+        } else {
+            return get(std::index_sequence<Idxs...>{});
+        }
     }
 
     iterator(){};
@@ -114,20 +157,27 @@ private:
 };
 
 template <typename... Ts>
-auto store<Ts...>::begin() -> iterator
+template <size_t... Is>
+auto store<Ts...>::begin() -> iterator<Is...>
 {
     return { this, 0 };
 }
 
 template <typename... Ts>
-auto store<Ts...>::end() -> iterator
+auto store<Ts...>::begin() -> iterator<>
 {
-    return { this, rindex_.size() };
+    return { this, 0 };
+}
+
+template <typename... Ts>
+auto store<Ts...>::end() -> sentinel
+{
+    return { rindex_.size() };
 }
 
 template <typename... Ts>
 template <typename... Us>
-auto store<Ts...>::insert(Us&&... us) -> iterator
+auto store<Ts...>::insert(Us&&... us) -> iterator<>
     requires(std::is_constructible_v<Ts, Us> && ...)
 {
     auto data_idx = static_cast<uint32_t>(rindex_.size());
@@ -147,7 +197,7 @@ auto store<Ts...>::insert(Us&&... us) -> iterator
         index_[index_pos.index] = { data_idx, index_pos.generation };
         rindex_.push_back(index_pos);
     }
-    return iterator{ this, data_idx };
+    return iterator<>{ this, data_idx };
 }
 
 template <typename... Ts>
@@ -173,7 +223,8 @@ void store<Ts...>::erase(key k)
 }
 
 template <typename... Ts>
-void store<Ts...>::erase(iterator i)
+template <size_t... Is>
+void store<Ts...>::erase(iterator<Is...> i)
 {
     assert(i.s == this);
     erase(rindex_[i.idx]);
