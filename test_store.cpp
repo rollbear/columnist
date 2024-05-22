@@ -14,7 +14,8 @@ TEST_CASE("a default constructed store is empty")
 TEST_CASE("insert returns the object and the key")
 {
     store<int> s;
-    auto k = s.insert(3);
+    auto i = s.insert(3);
+    auto k = std::get<0>(*i);
     REQUIRE(s[k] == 3);
     REQUIRE(k.index == 0);
 }
@@ -22,8 +23,10 @@ TEST_CASE("insert returns the object and the key")
 TEST_CASE("erase invalidates the key")
 {
     store<int> s;
-    auto k1 = s.insert(0);
-    auto k2 = s.insert(1);
+    auto i1 = s.insert(0);
+    auto k1 = std::get<0>(*i1);
+    auto i2 = s.insert(1);
+    auto k2 = std::get<0>(*i2);
     s.erase(k1);
     REQUIRE(s.has_key(k2));
     REQUIRE(!s.has_key(k1));
@@ -60,10 +63,12 @@ TEST_CASE("indexes aren't reused, their generation shifts")
 {
     store<int> s;
     auto p = s.insert(1);
+    auto kp = std::get<0>(*p);
     s.erase(p);
     auto q = s.insert(2);
-    REQUIRE(p != q);
-    REQUIRE(p.index == q.index);
-    REQUIRE(s.has_key(q));
-    REQUIRE(!s.has_key(p));
+    auto kq = std::get<0>(*q);
+    REQUIRE(kp != kq);
+    REQUIRE(kp.index == kq.index);
+    REQUIRE(s.has_key(kq));
+    REQUIRE(!s.has_key(kp));
 }

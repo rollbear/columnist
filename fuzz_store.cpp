@@ -64,7 +64,8 @@ void fuzz(generator g)
                 assert(elems == v->size());
                 break;
             case 2: {
-                auto k = v->insert(std::make_unique<K>());
+                auto i = v->insert(std::make_unique<K>());
+                auto k = std::get<0>(*i);
                 assert(std::ranges::none_of(keys, equals(k)));
                 assert(std::ranges::none_of(retired_keys, equals(k)));
                 keys.push_back(k);

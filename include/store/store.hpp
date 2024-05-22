@@ -17,9 +17,13 @@ public:
             return copy;
         }
 
+        constexpr key(uint32_t i, uint8_t g = 0)
+        : index(i & ((1U << 24) - 1)), generation(g)
+        {}
+
         bool operator==(const key&) const = default;
         uint32_t index: 24;
-        uint32_t generation: 8;
+        uint8_t generation;
     };
     struct iterator;
     using value_type = std::tuple<const key&, T&>;
@@ -30,9 +34,10 @@ public:
 
     template <typename... Ts>
         requires std::is_constructible_v<T, Ts...>
-    key insert(Ts&&... ts);
+    iterator insert(Ts&&... ts);
 
     void erase(key);
+    void erase(iterator i);
 
     bool has_key(key k) const;
 
@@ -110,22 +115,21 @@ auto store<T>::end() -> iterator
 template <typename T>
 template <typename... Ts>
     requires std::is_constructible_v<T, Ts...>
-auto store<T>::insert(Ts&&... ts) -> key
+auto store<T>::insert(Ts&&... ts) -> iterator
 {
     auto data_idx = static_cast<uint32_t>(data_.size());
-    auto& element = data_.emplace_back(std::forward<Ts>(ts)...);
+    data_.emplace_back(std::forward<Ts>(ts)...);
     if (first_free_.index == index_.size()) {
         rindex_.push_back(first_free_);
         index_.push_back({ data_idx, 0 });
-        first_free_.index = index_.size();
-        first_free_.generation = 0;
+        first_free_ = key(static_cast<uint32_t>(index_.size()));
     } else {
         auto index_pos = first_free_;
         first_free_ = index_[first_free_.index];
         index_[index_pos.index] = { data_idx, index_pos.generation };
         rindex_.push_back(index_pos);
     }
-    return rindex_.back();
+    return iterator{ this, data_idx };
 }
 
 template <typename T>
@@ -138,13 +142,19 @@ void store<T>::erase(key k)
     if (data_idx != data_.size() - 1) {
         data_[data_idx] = std::move(data_.back());
         rindex_[data_idx] = rindex_.back();
-        index_[rindex_[data_idx].index].index = data_idx;
+        index_[rindex_[data_idx].index].index = data_idx & ((1U << 24) - 1);
     }
     data_.pop_back();
     rindex_.pop_back();
     index_[k.index] = first_free_;
     first_free_ = k.next_generation();
-    ;
+}
+
+template <typename T>
+void store<T>::erase(iterator i)
+{
+    assert(i.s == this);
+    erase(rindex_[i.idx]);
 }
 
 template <typename T>
