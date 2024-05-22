@@ -179,8 +179,8 @@ private:
     row_id first_free_ = { 0, 0 };
 };
 
-template <typename T, size_t... Is>
-struct selector {
+template <typename F, size_t... Is>
+struct function_selector {
     template <typename S, typename Idxs>
     decltype(auto) operator()(row<S, Idxs> r)
     {
@@ -188,12 +188,12 @@ struct selector {
             using new_idxs = std::index_sequence<std::tuple_element_t<
                 Is,
                 std::tuple<std::integral_constant<size_t, I>...>>::value...>;
-            return t(row<S, new_idxs>(r));
+            return captured_function(row<S, new_idxs>(r));
         };
         return f(Idxs{});
     }
 
-    T t;
+    F captured_function;
 };
 
 inline constexpr auto identity = [](auto t) { return t; };
@@ -201,7 +201,7 @@ inline constexpr auto identity = [](auto t) { return t; };
 template <size_t... Is, typename F>
 inline constexpr auto select(F f)
 {
-    return selector<F, Is...>{ f };
+    return function_selector<F, Is...>{ f };
 };
 
 template <size_t... Ins, typename... Ts, typename Table, size_t... Is>
@@ -236,6 +236,90 @@ inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
     }
 }
 
+template <typename R, size_t... Is>
+struct range_index_selector {
+    using range_iterator = decltype(std::declval<R&>().begin());
+
+    struct iterator : range_iterator {
+        iterator(range_iterator it)
+        : range_iterator(it)
+        {}
+
+        auto operator*() const
+        {
+            auto& i = static_cast<const range_iterator&>(*this);
+            return select<Is...>(*i);
+        }
+    };
+
+    iterator begin() const { return { captured_range.begin() }; }
+
+    iterator cbegin() const { return begin(); }
+
+    auto end() const { return captured_range.end(); }
+
+    auto cend() const { return end(); }
+
+    R& captured_range;
+};
+
+template <size_t... Is>
+struct range_selector_maker {};
+
+template <typename R, size_t... Is>
+range_index_selector<R, Is...> operator|(R& r, range_selector_maker<Is...>)
+{
+    return { r };
+};
+
+template <size_t... Is>
+range_selector_maker<Is...> select()
+{
+    return {};
+}
+
+template <typename... Ts>
+struct range_type_selector_maker {};
+
+template <typename R, typename... Ts>
+struct range_type_selector {
+    using range_iterator = decltype(std::declval<R&>().begin());
+
+    struct iterator : range_iterator {
+        iterator(range_iterator it)
+        : range_iterator(it)
+        {}
+
+        auto operator*() const
+        {
+            auto& i = static_cast<const range_iterator&>(*this);
+            return select<Ts...>(*i);
+        }
+    };
+
+    iterator begin() const { return { captured_range.begin() }; }
+
+    iterator cbegin() const { return begin(); }
+
+    auto end() const { return captured_range.end(); }
+
+    auto cend() const { return end(); }
+
+    R& captured_range;
+};
+
+template <typename R, typename... Ts>
+range_type_selector<R, Ts...> operator|(R& r, range_type_selector_maker<Ts...>)
+{
+    return { r };
+}
+
+template <typename... Ts>
+range_type_selector_maker<Ts...> select()
+{
+    return {};
+}
+
 template <typename... Ts>
 template <typename T>
 class table<Ts...>::iterator_t {
@@ -265,16 +349,18 @@ public:
 
     bool operator==(sentinel end) const noexcept { return idx_ == end.size; }
 
-    iterator_t& operator++() noexcept
+    template <typename Self>
+    Self& operator++(this Self& self) noexcept
     {
-        ++idx_;
-        return *this;
+        ++self.idx_;
+        return self;
     }
 
-    iterator_t operator++(int) noexcept
+    template <typename Self>
+    Self operator++(this Self& self, int) noexcept
     {
-        auto copy = *this;
-        ++*this;
+        auto copy = self;
+        ++self;
         return copy;
     }
 

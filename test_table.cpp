@@ -253,3 +253,81 @@ TEST_CASE("select and subselect")
     REQUIRE(a == 'a');
     REQUIRE(e == 'e');
 }
+
+TEST_CASE("select range")
+{
+    GIVEN("a range with values of different types")
+    {
+        table<C<0>, C<1>, C<2>, C<3>, C<4>> s;
+
+        s.insert('a', 'b', 'c', 'd', 'e');
+        s.insert('A', 'B', 'C', 'D', 'E');
+        using tup = std::tuple<C<0>, C<2>, C<4>>;
+        std::array result{ tup{ 'a', 'c', 'e' }, tup{ 'A', 'C', 'E' } };
+        WHEN("selecting over indexes on a non-const range")
+        {
+            THEN("the value are iterated over and can be modified")
+            {
+                size_t idx = 0;
+                for (auto [a, c, e] : s | columnist::select<0, 2, 4>()) {
+                    STATIC_REQUIRE(std::is_same_v<C<0>&, decltype(a)>);
+                    REQUIRE(a == std::get<C<0>>(result[idx]));
+                    REQUIRE(c == std::get<C<2>>(result[idx]));
+                    REQUIRE(e == std::get<C<4>>(result[idx]));
+                    a.c = a + 1;
+                    ++idx;
+                }
+                REQUIRE(idx == 2);
+            }
+        }
+        AND_WHEN("selecting over indexes on a const range")
+        {
+            THEN("the value are iterated over and can be modified")
+            {
+                size_t idx = 0;
+                for (auto [a, c, e] :
+                     std::as_const(s) | columnist::select<0, 2, 4>()) {
+                    STATIC_REQUIRE(std::is_same_v<const C<0>&, decltype(a)>);
+                    REQUIRE(a == std::get<C<0>>(result[idx]));
+                    REQUIRE(c == std::get<C<2>>(result[idx]));
+                    REQUIRE(e == std::get<C<4>>(result[idx]));
+                    ++idx;
+                }
+                REQUIRE(idx == 2);
+            }
+        }
+        AND_WHEN("selecting over types on a non-const range")
+        {
+            THEN("the value are iterated over and can be modified")
+            {
+                size_t idx = 0;
+                for (auto [a, c, e] :
+                     s | columnist::select<C<0>, C<2>, C<4>>()) {
+                    STATIC_REQUIRE(std::is_same_v<C<0>&, decltype(a)>);
+                    REQUIRE(a == std::get<C<0>>(result[idx]));
+                    REQUIRE(c == std::get<C<2>>(result[idx]));
+                    REQUIRE(e == std::get<C<4>>(result[idx]));
+                    a.c = a + 1;
+                    ++idx;
+                }
+                REQUIRE(idx == 2);
+            }
+        }
+        AND_WHEN("selecting over types on a const range")
+        {
+            THEN("the value are iterated over and can be modified")
+            {
+                size_t idx = 0;
+                for (auto [a, c, e] :
+                     std::as_const(s) | columnist::select<C<0>, C<2>, C<4>>()) {
+                    STATIC_REQUIRE(std::is_same_v<const C<0>&, decltype(a)>);
+                    REQUIRE(a == std::get<C<0>>(result[idx]));
+                    REQUIRE(c == std::get<C<2>>(result[idx]));
+                    REQUIRE(e == std::get<C<4>>(result[idx]));
+                    ++idx;
+                }
+                REQUIRE(idx == 2);
+            }
+        }
+    }
+}
