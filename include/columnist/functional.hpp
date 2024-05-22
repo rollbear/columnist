@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace store {
+namespace columnist {
 
 namespace internal {
 template <typename T, typename U>
@@ -160,5 +160,5 @@ struct apply_ {
 inline constexpr auto apply
     = []<typename F>(F&& f) { return apply_{ std::forward<F>(f) }; };
 
-} // namespace store
+} // namespace columnist
 #endif // STORE_FUNCTIONAL_HPP

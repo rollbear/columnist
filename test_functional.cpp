@@ -1,5 +1,6 @@
+#include <columnist/functional.hpp>
+
 #include <catch2/catch_test_macros.hpp>
-#include <store/functional.hpp>
 
 #include <memory>
 
@@ -32,7 +33,7 @@ struct callable {
 
 TEST_CASE("noexcept forwarding", "[swizzle]")
 {
-    using store::swizzle;
+    using columnist::swizzle;
     auto c = swizzle<0, 1>(callable<throwing::no_throw>{});
     REQUIRE(noexcept(c(nullptr, 1)));
     REQUIRE(noexcept(std::move(c)(nullptr, 1)));
@@ -47,7 +48,7 @@ TEST_CASE("noexcept forwarding", "[swizzle]")
 
 TEST_CASE("return type", "[swizzle]")
 {
-    using store::swizzle;
+    using columnist::swizzle;
     auto c = swizzle<0, 1>(callable<throwing::no_throw>{});
     REQUIRE(std::is_same_v<int&, decltype(c(nullptr, 1))>);
     REQUIRE(std::is_same_v<int&&, decltype(std::move(c)(nullptr, 1))>);
@@ -65,7 +66,7 @@ TEST_CASE("return type", "[swizzle]")
 
 TEST_CASE("reorder", "[swizzle]")
 {
-    using store::swizzle;
+    using columnist::swizzle;
     auto c = swizzle<1, 0>(callable<throwing::no_throw>{});
     REQUIRE(std::is_same_v<int&, decltype(c(1, nullptr))>);
     REQUIRE(std::is_same_v<int&&, decltype(std::move(c)(1, nullptr))>);
@@ -83,7 +84,7 @@ TEST_CASE("reorder", "[swizzle]")
 
 TEST_CASE("drop first and last", "[swizzle]")
 {
-    using store::swizzle;
+    using columnist::swizzle;
     constexpr void* n = nullptr;
     auto c = swizzle<2, 1>(callable<throwing::no_throw>{});
     REQUIRE(std::is_same_v<int&, decltype(c(n, 1, nullptr, "foo"))>);
@@ -107,7 +108,7 @@ TEST_CASE("drop first and last", "[swizzle]")
 
 TEST_CASE("arg forwarding", "[swizzle]")
 {
-    using store::swizzle;
+    using columnist::swizzle;
     using CN = callable<throwing::no_throw>;
     auto cb = swizzle<0>(std::bind_front(CN{}, std::make_unique<int>(3)));
     REQUIRE(!can_invoke(cb, 3));
@@ -118,7 +119,7 @@ TEST_CASE("arg forwarding", "[swizzle]")
 
 TEST_CASE("swizzle is constexpr", "[swizzle]")
 {
-    using store::swizzle;
+    using columnist::swizzle;
     constexpr auto f = swizzle<1, 0>(std::minus{});
     STATIC_REQUIRE(f(5, 2) == -3);
 }
@@ -127,7 +128,7 @@ namespace {
 using CT = callable<throwing::do_throw>;
 using CN = callable<throwing::no_throw>;
 using T = std::tuple<std::unique_ptr<int>, int>;
-using store::apply;
+using columnist::apply;
 static_assert(std::is_nothrow_invocable_v<decltype(apply(CN{}))&, T&&>);
 static_assert(!std::is_nothrow_invocable_v<decltype(apply(CT{}))&, T&&>);
 static_assert(std::is_invocable_v<decltype(apply(CT{}))&, T&&>);
@@ -212,7 +213,7 @@ TEST_CASE("apply works with types inheriting from tuple", "[apply]")
 
 TEST_CASE("apply a swizzled function", "[swizzle][apply]")
 {
-    using store::swizzle;
+    using columnist::swizzle;
     auto f
         = swizzle<1, 0>([](int a, std::unique_ptr<int> b) { return a + *b; });
     auto x = apply(f)(std::tuple{ std::make_unique<int>(3), 5 });

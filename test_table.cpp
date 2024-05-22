@@ -1,22 +1,23 @@
+#include <columnist/table.hpp>
+
 #include <catch2/catch_test_macros.hpp>
-#include <store/store.hpp>
 
 #include <iostream>
 #include <map>
 #include <set>
 
-using table::store;
+using columnist::table;
 
-TEST_CASE("a default constructed store is empty")
+TEST_CASE("a default constructed columnist is empty")
 {
-    store<int> s;
+    table<int> s;
     REQUIRE(s.empty());
     REQUIRE(s.size() == 0);
 }
 
 TEST_CASE("insert returns the object and the row_id")
 {
-    store<int> s;
+    table<int> s;
     auto h = s.insert(3);
     REQUIRE(get<0>(s[h]) == 3);
     REQUIRE(h.index == 0);
@@ -24,7 +25,7 @@ TEST_CASE("insert returns the object and the row_id")
 
 TEST_CASE("erase invalidates the row_id")
 {
-    store<int> s;
+    table<int> s;
     auto h1 = s.insert(0);
     auto h2 = s.insert(1);
     s.erase(h1);
@@ -36,9 +37,9 @@ TEST_CASE("erase invalidates the row_id")
 
 TEST_CASE("iteration")
 {
-    GIVEN("a store with some values, jumbled due to erasing")
+    GIVEN("a columnist with some values, jumbled due to erasing")
     {
-        store<int> s;
+        table<int> s;
         std::vector keys{ s.insert(0) };
         keys.push_back(s.insert(1));
         s.erase(keys[0]);
@@ -88,7 +89,7 @@ TEST_CASE("iteration")
 
 TEST_CASE("indexes aren't reused, their generation shifts")
 {
-    store<int> s;
+    table<int> s;
     auto hp = s.insert(1);
     s.erase(hp);
     auto hq = s.insert(2);
@@ -100,7 +101,7 @@ TEST_CASE("indexes aren't reused, their generation shifts")
 
 TEST_CASE("pluralized")
 {
-    store<int, std::string> s;
+    table<int, std::string> s;
     auto h1 = s.insert(3, "foo");
     auto h2 = s.insert(5, "bar");
     REQUIRE(get<0>(s[h1]) == 3);
@@ -110,15 +111,15 @@ TEST_CASE("pluralized")
     REQUIRE(s[h1] == std::tuple(3, "foo"));
     REQUIRE(s[h2] == std::tuple(5, "bar"));
     s.erase(h1);
-    REQUIRE(get<0>(table::select<1>(*s.begin())) == "bar");
-    REQUIRE(get<0>(table::select<0>(*s.begin())) == 5);
-    REQUIRE(get<0>(table::select<std::string>(*s.begin())) == "bar");
-    REQUIRE(get<0>(table::select<int>(*s.begin())) == 5);
+    REQUIRE(get<0>(columnist::select<1>(*s.begin())) == "bar");
+    REQUIRE(get<0>(columnist::select<0>(*s.begin())) == 5);
+    REQUIRE(get<0>(columnist::select<std::string>(*s.begin())) == "bar");
+    REQUIRE(get<0>(columnist::select<int>(*s.begin())) == 5);
 }
 
 TEST_CASE("erase_if")
 {
-    store<int, std::string> s;
+    table<int, std::string> s;
     s.insert(1, "one");
     s.insert(2, "two");
     s.insert(3, "three");
@@ -140,7 +141,7 @@ TEST_CASE("erase_if")
     }
     {
         auto count = erase_if(
-            s, table::select<0>([](auto&& t) { return get<0>(t) > 1; }));
+            s, columnist::select<0>([](auto&& t) { return get<0>(t) > 1; }));
         REQUIRE(count == 2);
         REQUIRE(s.size() == 1);
         auto [num, name] = *s.begin();
@@ -158,28 +159,28 @@ struct C {
 
 TEST_CASE("select and subselect")
 {
-    store<C<0>, C<1>, C<2>, C<3>, C<4>> s;
+    table<C<0>, C<1>, C<2>, C<3>, C<4>> s;
     s.insert('a', 'b', 'c', 'd', 'e');
     auto r1 = *s.begin();
-    auto rcde_num = table::select<2, 3, 4>(r1);
+    auto rcde_num = columnist::select<2, 3, 4>(r1);
     REQUIRE(get<0>(rcde_num) == 'c');
     REQUIRE(get<1>(rcde_num) == 'd');
     REQUIRE(get<2>(rcde_num) == 'e');
-    auto rdc_num = table::select<1, 0>(rcde_num);
+    auto rdc_num = columnist::select<1, 0>(rcde_num);
     REQUIRE(get<0>(rdc_num) == 'd');
     REQUIRE(get<1>(rdc_num) == 'c');
-    auto rcde = table::select<C<2>, C<3>, C<4>>(r1);
+    auto rcde = columnist::select<C<2>, C<3>, C<4>>(r1);
     REQUIRE(get<0>(rcde) == 'c');
     REQUIRE(get<1>(rcde) == 'd');
     REQUIRE(get<2>(rcde) == 'e');
-    auto rdc = table::select<C<3>, C<2>>(rcde);
+    auto rdc = columnist::select<C<3>, C<2>>(rcde);
     REQUIRE(get<0>(rdc) == 'd');
     REQUIRE(get<1>(rdc) == 'c');
-    auto race = table::select<C<0>, C<2>, C<4>>(r1);
+    auto race = columnist::select<C<0>, C<2>, C<4>>(r1);
     REQUIRE(get<0>(race) == 'a');
     REQUIRE(get<1>(race) == 'c');
     REQUIRE(get<2>(race) == 'e');
-    auto rae = table::select<C<0>, C<4>>(race);
+    auto rae = columnist::select<C<0>, C<4>>(race);
     REQUIRE(get<0>(rae) == 'a');
     REQUIRE(get<1>(rae) == 'e');
     auto [a, e] = rae;

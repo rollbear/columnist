@@ -1,5 +1,5 @@
-#ifndef STORE_STORE_HPP
-#define STORE_STORE_HPP
+#ifndef STORE_TABLE_HPP
+#define STORE_TABLE_HPP
 
 #include <cassert>
 #include <cstdint>
@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace table {
+namespace columnist {
 
 namespace internal {
 
@@ -86,7 +86,7 @@ private:
 };
 
 template <typename... Ts>
-class store {
+class table {
     template <typename S, typename Is>
     friend class row;
 
@@ -134,13 +134,13 @@ public:
 
     bool has_row_id(row_id k) const;
 
-    row<store, std::index_sequence_for<Ts...>> operator[](row_id k)
+    row<table, std::index_sequence_for<Ts...>> operator[](row_id k)
     {
         assert(has_row_id(k));
         return { this, index_[k.index].index };
     }
 
-    row<const store, std::index_sequence_for<Ts...>> operator[](row_id k) const
+    row<const table, std::index_sequence_for<Ts...>> operator[](row_id k) const
     {
         assert(has_row_id(k));
         return { this, index_[k.index].index };
@@ -151,7 +151,7 @@ public:
     sentinel end();
 
     template <typename P>
-    friend size_t erase_if(store& s, P p)
+    friend size_t erase_if(table& s, P p)
     {
         size_t rv = 0;
         auto i = s.begin();
@@ -232,11 +232,15 @@ inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 }
 
 template <typename... Ts>
-class store<Ts...>::iterator {
-    friend class store<Ts...>;
+class table<Ts...>::iterator {
+    friend class table<Ts...>;
 
 public:
     using iterator_category = std::forward_iterator_tag;
+    using value_type = row<table, std::index_sequence_for<Ts...>>;
+    using reference = value_type;
+    using pointer = void;
+    using difference_type = ssize_t;
     bool operator==(const iterator&) const = default;
 
     bool operator==(sentinel end) const { return idx == end.size; }
@@ -256,35 +260,35 @@ public:
 
     auto operator*() const
     {
-        return row<store, std::index_sequence_for<Ts...>>(s, idx);
+        return row<table, std::index_sequence_for<Ts...>>(s, idx);
     }
 
     iterator(){};
 
 private:
-    iterator(store<Ts...>* s, size_t idx)
+    iterator(table<Ts...>* s, size_t idx)
     : s(s), idx(idx)
     {}
 
-    store<Ts...>* s = nullptr;
+    table<Ts...>* s = nullptr;
     size_t idx = 0;
 };
 
 template <typename... Ts>
-auto store<Ts...>::begin() -> iterator
+auto table<Ts...>::begin() -> iterator
 {
     return { this, 0 };
 }
 
 template <typename... Ts>
-auto store<Ts...>::end() -> sentinel
+auto table<Ts...>::end() -> sentinel
 {
     return { rindex_.size() };
 }
 
 template <typename... Ts>
 template <typename... Us>
-auto store<Ts...>::insert(Us&&... us) -> row_id
+auto table<Ts...>::insert(Us&&... us) -> row_id
     requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...)
 {
     auto data_idx = static_cast<uint32_t>(rindex_.size());
@@ -311,7 +315,7 @@ auto store<Ts...>::insert(Us&&... us) -> row_id
 }
 
 template <typename... Ts>
-void store<Ts...>::erase(row_id k)
+void table<Ts...>::erase(row_id k)
 {
     assert(k.index < index_.size());
     auto data_idx = index_[k.index].index;
@@ -337,14 +341,14 @@ void store<Ts...>::erase(row_id k)
 }
 
 template <typename... Ts>
-void store<Ts...>::erase(iterator i)
+void table<Ts...>::erase(iterator i)
 {
     assert(i.s == this);
     erase(rindex_[i.idx]);
 }
 
 template <typename... Ts>
-bool store<Ts...>::has_row_id(row_id k) const
+bool table<Ts...>::has_row_id(row_id k) const
 {
     if (k.index >= index_.size()) { return false; }
     auto data_idx = index_[k.index].index;
@@ -352,16 +356,16 @@ bool store<Ts...>::has_row_id(row_id k) const
     return rindex_[data_idx] == k;
 }
 
-} // namespace table
+} // namespace columnist
 
 template <std::size_t I, typename S, size_t... Is>
-struct std::tuple_element<I, table::row<S, std::index_sequence<Is...>>> {
+struct std::tuple_element<I, columnist::row<S, std::index_sequence<Is...>>> {
     using type = typename S::template element_type<std::tuple_element_t<
         I,
         std::tuple<std::integral_constant<size_t, Is>...>>::value>;
 };
 
 template <typename S, size_t... Is>
-struct std::tuple_size<table::row<S, std::index_sequence<Is...>>>
+struct std::tuple_size<columnist::row<S, std::index_sequence<Is...>>>
 : std::integral_constant<size_t, sizeof...(Is)> {};
-#endif // STORE_STORE_HPP
+#endif // STORE_TABLE_HPP

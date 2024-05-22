@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
-project(store)
+project(columnist)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED yes)
@@ -8,32 +8,32 @@ set(CMAKE_CXX_EXTENSIONS  no)
 find_package(Catch2 3 REQUIRED)
 
 
-add_library(store INTERFACE)
-add_library(store::store ALIAS store)
+add_library(columnist INTERFACE)
+add_library(columnist::columnist ALIAS columnist)
 target_include_directories(
-        store
+        columnist
         INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-install(TARGETS store
-        EXPORT store-targets
+install(TARGETS columnist
+        EXPORT columnist-targets
         INCLUDES DESTINATION include)
 
-add_executable(test_store test_store.cpp)
-target_link_libraries(test_store
-store::store
+add_executable(test_table test_table.cpp)
+target_link_libraries(test_table
+columnist::columnist
 Catch2::Catch2WithMain)
 
 add_executable(test_functional test_functional.cpp)
-target_link_libraries(test_functional store::store Catch2::Catch2WithMain)
+target_link_libraries(test_functional columnist::columnist Catch2::Catch2WithMain)
 
 add_executable(test_combined test_combined.cpp)
-target_link_libraries(test_combined store::store Catch2::Catch2WithMain)
+target_link_libraries(test_combined columnist::columnist Catch2::Catch2WithMain)
 
-add_executable(fuzz_store fuzz_store.cpp
+add_executable(fuzz_table fuzz_table.cpp
 )
-target_compile_options(fuzz_store PRIVATE "-fsanitize=fuzzer,address,undefined")
-target_link_options(fuzz_store PRIVATE "-fsanitize=fuzzer,address,undefined")
-target_link_libraries(fuzz_store store::store)
+target_compile_options(fuzz_table PRIVATE "-fsanitize=fuzzer,address,undefined")
+target_link_options(fuzz_table PRIVATE "-fsanitize=fuzzer,address,undefined")
+target_link_libraries(fuzz_table columnist::columnist)
 

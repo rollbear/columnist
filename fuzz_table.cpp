@@ -1,5 +1,5 @@
 
-#include <store/store.hpp>
+#include <columnist/table.hpp>
 
 #include <algorithm>
 #include <cstring>
@@ -35,7 +35,7 @@ auto equals
 
 void fuzz(generator g)
 {
-    using table::store;
+    using columnist::table;
 
     struct K {
         bool operator==(const K&) const = default;
@@ -44,7 +44,7 @@ void fuzz(generator g)
         uint32_t gen: 8;
     };
 
-    using T = store<std::unique_ptr<K>>;
+    using T = table<std::unique_ptr<K>>;
     std::optional<T> v;
     std::vector<T::row_id> keys;
     std::deque<T::row_id> retired_keys;
