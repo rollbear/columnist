@@ -70,7 +70,7 @@ void fuzz(generator g)
                 assert(std::ranges::none_of(retired_keys, equals(k)));
                 keys.push_back(k);
                 ++elems;
-                *(*v)[k] = { k.index, k.generation };
+                *std::get<0>((*v)[k]) = { k.index, k.generation };
                 break;
             }
             case 3: {
@@ -92,7 +92,7 @@ void fuzz(generator g)
                     auto idx = get_idx();
                     auto k = keys[idx];
                     assert(v->has_key(k));
-                    auto& p = (*v)[k];
+                    auto& p = std::get<0>((*v)[k]);
                     assert(p->idx == k.index);
                     assert(p->gen == k.generation);
                 }

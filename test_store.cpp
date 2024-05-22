@@ -16,7 +16,7 @@ TEST_CASE("insert returns the object and the key")
     store<int> s;
     auto i = s.insert(3);
     auto k = std::get<0>(*i);
-    REQUIRE(s[k] == 3);
+    REQUIRE(std::get<0>(s[k]) == 3);
     REQUIRE(k.index == 0);
 }
 
@@ -30,7 +30,7 @@ TEST_CASE("erase invalidates the key")
     s.erase(k1);
     REQUIRE(s.has_key(k2));
     REQUIRE(!s.has_key(k1));
-    REQUIRE(s[k2] == 1);
+    REQUIRE(std::get<0>(s[k2]) == 1);
     REQUIRE(s.size() == 1);
 }
 
@@ -53,7 +53,7 @@ TEST_CASE("iteration")
         auto i = values.find(v);
         REQUIRE(i != values.end());
         values.erase(i);
-        REQUIRE(s[k] == v);
+        REQUIRE(std::get<0>(s[k]) == v);
         std::cerr << k.index << ' ' << v << '\n';
     }
     REQUIRE(values.empty());
@@ -71,4 +71,20 @@ TEST_CASE("indexes aren't reused, their generation shifts")
     REQUIRE(kp.index == kq.index);
     REQUIRE(s.has_key(kq));
     REQUIRE(!s.has_key(kp));
+}
+
+TEST_CASE("pluralized")
+{
+    store<int, std::string> s;
+    auto i1 = s.insert(3, "foo");
+    auto i2 = s.insert(5, "bar");
+    REQUIRE(std::get<1>(*i1) == 3);
+    REQUIRE(std::get<1>(*i2) == 5);
+    REQUIRE(std::get<2>(*i1) == "foo");
+    REQUIRE(std::get<2>(*i2) == "bar");
+    auto k1 = std::get<0>(*i1);
+    auto k2 = std::get<0>(*i2);
+    REQUIRE(s[k1] == std::tuple(3, "foo"));
+    REQUIRE(s[k2] == std::tuple(5, "bar"));
+    s.erase(k1);
 }

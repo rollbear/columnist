@@ -3,10 +3,11 @@
 
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <tuple>
 #include <vector>
 
-template <typename T>
+template <typename... Ts>
 class store {
 public:
     struct key {
@@ -26,46 +27,54 @@ public:
         uint8_t generation;
     };
     struct iterator;
-    using value_type = std::tuple<const key&, T&>;
+    using value_type = std::tuple<const key&, Ts&...>;
 
-    size_t size() const { return data_.size(); }
+    size_t size() const { return rindex_.size(); }
 
     bool empty() const { return size() == 0; }
 
-    template <typename... Ts>
-        requires std::is_constructible_v<T, Ts...>
-    iterator insert(Ts&&... ts);
+    template <typename... Us>
+    auto insert(Us&&... us) -> iterator
+        requires(std::is_constructible_v<Ts, Us> && ...);
 
     void erase(key);
     void erase(iterator i);
 
     bool has_key(key k) const;
 
-    T& operator[](key k) { return lookup(*this, k); }
+    std::tuple<Ts&...> operator[](key k) { return lookup(*this, k); }
 
-    const T& operator[](key k) const { return lookup(*this, k); }
+    const std::tuple<Ts&...> operator[](key k) const
+    {
+        return lookup(*this, k);
+    }
 
     iterator begin();
     iterator end();
 
 private:
     template <typename S>
-    static auto& lookup(S&& s, key k)
+    static auto lookup(S&& s, key k)
     {
         assert(k.index < s.index_.size());
         auto data_idx = s.index_[k.index].index;
-        return s.data_[data_idx];
+        auto get = [&]<size_t... Is>(std::index_sequence<Is...>,
+                                     uint32_t data_idx) {
+            return std::forward_as_tuple(std::get<Is>(s.data_)[data_idx]...);
+        };
+        return std::invoke(
+            get, std::make_index_sequence<sizeof...(Ts)>{}, data_idx);
     }
 
-    std::vector<T> data_;
+    std::tuple<std::vector<Ts>...> data_;
     std::vector<key> rindex_;
     std::vector<key> index_;
     key first_free_ = { 0, 0 };
 };
 
-template <typename T>
-class store<T>::iterator {
-    friend class store<T>;
+template <typename... Ts>
+class store<Ts...>::iterator {
+    friend class store<Ts...>;
 
 public:
     using iterator_category = std::forward_iterator_tag;
@@ -84,41 +93,50 @@ public:
         return copy;
     }
 
-    store<T>::value_type operator*() const
+    store<Ts...>::value_type operator*() const
     {
-        return { s->rindex_[idx], s->data_[idx] };
+        auto get = [&]<size_t... Is>(std::index_sequence<Is...>) {
+            return std::forward_as_tuple(s->rindex_[idx],
+                                         std::get<Is>(s->data_)[idx]...);
+        };
+        return get(std::make_index_sequence<sizeof...(Ts)>{});
     }
 
     iterator(){};
 
 private:
-    iterator(store<T>* s, size_t idx)
+    iterator(store<Ts...>* s, size_t idx)
     : s(s), idx(idx)
     {}
 
-    store<T>* s = nullptr;
+    store<Ts...>* s = nullptr;
     size_t idx = 0;
 };
 
-template <typename T>
-auto store<T>::begin() -> iterator
+template <typename... Ts>
+auto store<Ts...>::begin() -> iterator
 {
     return { this, 0 };
 }
 
-template <typename T>
-auto store<T>::end() -> iterator
+template <typename... Ts>
+auto store<Ts...>::end() -> iterator
 {
-    return { this, data_.size() };
+    return { this, rindex_.size() };
 }
 
-template <typename T>
 template <typename... Ts>
-    requires std::is_constructible_v<T, Ts...>
-auto store<T>::insert(Ts&&... ts) -> iterator
+template <typename... Us>
+auto store<Ts...>::insert(Us&&... us) -> iterator
+    requires(std::is_constructible_v<Ts, Us> && ...)
 {
-    auto data_idx = static_cast<uint32_t>(data_.size());
-    data_.emplace_back(std::forward<Ts>(ts)...);
+    auto data_idx = static_cast<uint32_t>(rindex_.size());
+    auto push = [&]<size_t... Is>(std::index_sequence<Is...>, auto&& t) {
+        (std::get<Is>(data_).push_back(std::get<Is>(std::move(t))), ...);
+    };
+    std::invoke(push,
+                std::make_index_sequence<sizeof...(Ts)>{},
+                std::forward_as_tuple(std::forward<Us>(us)...));
     if (first_free_.index == index_.size()) {
         rindex_.push_back(first_free_);
         index_.push_back({ data_idx, 0 });
@@ -132,33 +150,37 @@ auto store<T>::insert(Ts&&... ts) -> iterator
     return iterator{ this, data_idx };
 }
 
-template <typename T>
-void store<T>::erase(key k)
+template <typename... Ts>
+void store<Ts...>::erase(key k)
 {
     assert(k.index < index_.size());
     auto data_idx = index_[k.index].index;
     assert(data_idx < rindex_.size());
     assert(rindex_[data_idx].index == k.index);
-    if (data_idx != data_.size() - 1) {
-        data_[data_idx] = std::move(data_.back());
+    auto move_last = [&]<size_t... Is>(std::index_sequence<Is...>) {
+        ((std::get<Is>(data_)[data_idx] = std::move(std::get<Is>(data_).back()),
+          std::get<Is>(data_).pop_back()),
+         ...);
+    };
+    std::invoke(move_last, std::make_index_sequence<sizeof...(Ts)>{});
+    if (data_idx != rindex_.size() - 1) {
         rindex_[data_idx] = rindex_.back();
         index_[rindex_[data_idx].index].index = data_idx & ((1U << 24) - 1);
     }
-    data_.pop_back();
     rindex_.pop_back();
     index_[k.index] = first_free_;
     first_free_ = k.next_generation();
 }
 
-template <typename T>
-void store<T>::erase(iterator i)
+template <typename... Ts>
+void store<Ts...>::erase(iterator i)
 {
     assert(i.s == this);
     erase(rindex_[i.idx]);
 }
 
-template <typename T>
-bool store<T>::has_key(key k) const
+template <typename... Ts>
+bool store<Ts...>::has_key(key k) const
 {
     if (k.index >= index_.size()) { return false; }
     auto data_idx = index_[k.index].index;
