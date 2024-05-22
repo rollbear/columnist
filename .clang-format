@@ -1,0 +1,67 @@
+---
+Language: Cpp
+Standard: c++20
+LineEnding: LF
+# Note that we cannot use IncludeIsMainRegex functionality, because it
+# does not support includes in angle brackets (<>)
+
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: <columnist/.*\.hpp>
+    Priority: 1
+  - Regex: \".*\"
+    Priority: 2
+  - Regex: <.*\.hpp>
+    Priority: 3
+  - Regex: <[^./]*>
+    Priority: 4
+
+AllowShortBlocksOnASingleLine: Always
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: All
+AllowShortCompoundRequirementOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+
+AccessModifierOffset: "-4"
+AlignEscapedNewlines: Left
+AlignOperands: AlignAfterOperator
+AllowAllConstructorInitializersOnNextLine: "true"
+BinPackArguments: "false"
+BinPackParameters: "false"
+BitFieldColonSpacing: After
+BraceWrapping:
+  AfterFunction: true
+  SplitEmptyFunction: false
+BreakBeforeBinaryOperators: All
+BreakBeforeTernaryOperators: true
+BreakBeforeBraces: Custom
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+ColumnLimit: 80
+ConstructorInitializerIndentWidth: 0
+Cpp11BracedListStyle: false
+DerivePointerAlignment: "false"
+EmptyLineBeforeAccessModifier: Always
+FixNamespaceComments: "true"
+IndentCaseLabels: "false"
+IndentPPDirectives: AfterHash
+IndentRequiresClause: true
+IndentWidth: "4"
+InsertBraces: true
+InsertNewlineAtEOF: true
+NamespaceIndentation: None
+PackConstructorInitializers: NextLineOnly
+PointerAlignment: Left
+SeparateDefinitionBlocks: Always
+SpaceBeforeCtorInitializerColon: true
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+TabWidth: "4"
+UseTab: Never
+AlwaysBreakTemplateDeclarations: true
+SpaceAfterTemplateKeyword: true
+SortUsingDeclarations: true
+ReflowComments: true
