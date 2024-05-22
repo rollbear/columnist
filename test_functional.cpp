@@ -224,3 +224,117 @@ TEST_CASE("apply is constexpr", "[apply]")
     constexpr auto a = apply(std::minus{});
     STATIC_REQUIRE(a(std::tuple(5, 2)) == 3);
 }
+
+template <typename T>
+struct member_get {
+    T nums[2];
+
+    template <size_t I, typename Self>
+    constexpr decltype(auto) get(this Self&& self)
+    {
+        return std::forward<Self>(self).nums[I];
+    }
+};
+
+template <typename T>
+struct std::tuple_size<member_get<T>> : std::integral_constant<size_t, 2> {};
+
+template <size_t I, typename T>
+struct std::tuple_element<I, member_get<T>> {
+    using type = T;
+};
+
+constexpr inline auto can_call = []<typename F, typename T>(F&&, T&&) {
+    return std::is_invocable_v<F, T>;
+};
+
+TEST_CASE("apply works with a type with a get<> as a member")
+{
+    REQUIRE(apply(std::minus{})(member_get{ 5, 2 }) == 3);
+    STATIC_REQUIRE(apply(std::minus{})(member_get{ 5, 1 }) == 4);
+    member_get<std::unique_ptr<int>> m{ std::make_unique<int>(3),
+                                        std::make_unique<int>(1) };
+    auto deref_sub = [](auto x, auto y) { return *x - *y; };
+    REQUIRE(!can_call(apply(deref_sub), m));
+    REQUIRE(!can_call(apply(deref_sub), std::as_const(m)));
+    REQUIRE(can_call(apply(deref_sub), std::move(m)));
+    REQUIRE(!can_call(apply(deref_sub), std::move(std::as_const(m))));
+    REQUIRE(apply(deref_sub)(std::move(m)) == 2);
+}
+
+template <typename T>
+struct friend_get {
+    T nums[2];
+
+    template <size_t I>
+    friend constexpr decltype(auto) get(friend_get&& self)
+    {
+        return std::move(self).nums[I];
+    }
+
+    template <size_t I>
+    friend constexpr decltype(auto) get(friend_get& self)
+    {
+        return self.nums[I];
+    }
+
+    template <size_t I>
+    friend constexpr decltype(auto) get(const friend_get&& self)
+    {
+        return std::move(self).nums[I];
+    }
+
+    template <size_t I>
+    friend constexpr decltype(auto) get(const friend_get& self)
+    {
+        return self.nums[I];
+    }
+};
+
+template <typename T>
+struct std::tuple_size<friend_get<T>> : std::integral_constant<size_t, 2> {};
+
+template <size_t I, typename T>
+struct std::tuple_element<I, friend_get<T>> {
+    using type = T;
+};
+
+TEST_CASE("apply works with get as a hidden friend")
+{
+    REQUIRE(apply(std::minus{})(friend_get{ 5, 2 }) == 3);
+    STATIC_REQUIRE(apply(std::minus{})(friend_get{ 5, 1 }) == 4);
+    friend_get<std::unique_ptr<int>> m{ std::make_unique<int>(3),
+                                        std::make_unique<int>(1) };
+    auto deref_sub = [](auto x, auto y) { return *x - *y; };
+    REQUIRE(!can_call(apply(deref_sub), m));
+    REQUIRE(!can_call(apply(deref_sub), std::as_const(m)));
+    REQUIRE(can_call(apply(deref_sub), std::move(m)));
+    REQUIRE(!can_call(apply(deref_sub), std::move(std::as_const(m))));
+    REQUIRE(apply(deref_sub)(std::move(m)) == 2);
+}
+
+TEST_CASE("apply works with std::pair")
+{
+    REQUIRE(apply(std::minus{})(std::pair{ 5, 2 }) == 3);
+    STATIC_REQUIRE(apply(std::minus{})(std::pair{ 5, 1 }) == 4);
+    std::pair m{ std::make_unique<int>(3), std::make_unique<int>(1) };
+    auto deref_sub = [](auto x, auto y) { return *x - *y; };
+    REQUIRE(!can_call(apply(deref_sub), m));
+    REQUIRE(!can_call(apply(deref_sub), std::as_const(m)));
+    REQUIRE(can_call(apply(deref_sub), std::move(m)));
+    REQUIRE(!can_call(apply(deref_sub), std::move(std::as_const(m))));
+    REQUIRE(apply(deref_sub)(std::move(m)) == 2);
+}
+
+TEST_CASE("apply works with std::array")
+{
+    REQUIRE(apply(std::minus{})(std::array{ 5, 2 }) == 3);
+    STATIC_REQUIRE(apply(std::minus{})(std::array{ 5, 1 }) == 4);
+    std::array m{ std::make_unique<int>(3), std::make_unique<int>(1) };
+    auto deref_sub = [](auto x, auto y) { return *x - *y; };
+    REQUIRE(!can_call(apply(deref_sub), m));
+    REQUIRE(!can_call(apply(deref_sub), std::as_const(m)));
+    REQUIRE(can_call(apply(deref_sub), std::move(m)));
+    REQUIRE(!can_call(apply(deref_sub), std::move(std::as_const(m))));
+    REQUIRE(apply(deref_sub)(std::move(m)) == 2);
+}
