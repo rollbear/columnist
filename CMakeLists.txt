@@ -28,6 +28,9 @@ Catch2::Catch2WithMain)
 add_executable(test_functional test_functional.cpp)
 target_link_libraries(test_functional store::store Catch2::Catch2WithMain)
 
+add_executable(test_combined test_combined.cpp)
+target_link_libraries(test_combined store::store Catch2::Catch2WithMain)
+
 add_executable(fuzz_store fuzz_store.cpp
 )
 target_compile_options(fuzz_store PRIVATE "-fsanitize=fuzzer,address,undefined")
