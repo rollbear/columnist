@@ -169,7 +169,7 @@ public:
     bool empty() const { return size() == 0; }
 
     template <typename... Us>
-    auto insert(Us&&... us) -> iterator<>
+    auto insert(Us&&... us) -> handle
         requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...);
 
     void erase(handle);
@@ -300,7 +300,7 @@ auto store<Ts...>::end() -> sentinel
 
 template <typename... Ts>
 template <typename... Us>
-auto store<Ts...>::insert(Us&&... us) -> iterator<>
+auto store<Ts...>::insert(Us&&... us) -> handle
     requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...)
 {
     auto data_idx = static_cast<uint32_t>(rindex_.size());
@@ -314,13 +314,13 @@ auto store<Ts...>::insert(Us&&... us) -> iterator<>
         rindex_.push_back(first_free_);
         index_.push_back({ data_idx, 0 });
         first_free_ = handle(static_cast<uint32_t>(index_.size()));
+        return index_.back();
     } else {
-        auto index_pos = first_free_;
-        first_free_ = index_[first_free_.index];
+        auto index_pos = std::exchange(first_free_, index_[first_free_.index]);
         index_[index_pos.index] = { data_idx, index_pos.generation };
         rindex_.push_back(index_pos);
+        return index_pos;
     }
-    return iterator<>{ this, data_idx };
 }
 
 template <typename... Ts>

@@ -17,23 +17,20 @@ TEST_CASE("a default constructed store is empty")
 TEST_CASE("insert returns the object and the handle")
 {
     store<int> s;
-    auto i = s.insert(3);
-    auto k = std::get<0>(*i);
-    REQUIRE(std::get<0>(s[k]) == 3);
-    REQUIRE(k.index == 0);
+    auto h = s.insert(3);
+    REQUIRE(std::get<0>(s[h]) == 3);
+    REQUIRE(h.index == 0);
 }
 
 TEST_CASE("erase invalidates the handle")
 {
     store<int> s;
-    auto i1 = s.insert(0);
-    auto k1 = std::get<0>(*i1);
-    auto i2 = s.insert(1);
-    auto k2 = std::get<0>(*i2);
-    s.erase(k1);
-    REQUIRE(s.has_key(k2));
-    REQUIRE(!s.has_key(k1));
-    REQUIRE(std::get<0>(s[k2]) == 1);
+    auto h1 = s.insert(0);
+    auto h2 = s.insert(1);
+    s.erase(h1);
+    REQUIRE(s.has_key(h2));
+    REQUIRE(!s.has_key(h1));
+    REQUIRE(std::get<0>(s[h2]) == 1);
     REQUIRE(s.size() == 1);
 }
 
@@ -65,31 +62,27 @@ TEST_CASE("iteration")
 TEST_CASE("indexes aren't reused, their generation shifts")
 {
     store<int> s;
-    auto p = s.insert(1);
-    auto kp = std::get<0>(*p);
-    s.erase(p);
-    auto q = s.insert(2);
-    auto kq = std::get<0>(*q);
-    REQUIRE(kp != kq);
-    REQUIRE(kp.index == kq.index);
-    REQUIRE(s.has_key(kq));
-    REQUIRE(!s.has_key(kp));
+    auto hp = s.insert(1);
+    s.erase(hp);
+    auto hq = s.insert(2);
+    REQUIRE(hp != hq);
+    REQUIRE(hp.index == hq.index);
+    REQUIRE(s.has_key(hq));
+    REQUIRE(!s.has_key(hp));
 }
 
 TEST_CASE("pluralized")
 {
     store<int, std::string> s;
-    auto i1 = s.insert(3, "foo");
-    auto i2 = s.insert(5, "bar");
-    REQUIRE(std::get<1>(*i1) == 3);
-    REQUIRE(std::get<1>(*i2) == 5);
-    REQUIRE(std::get<2>(*i1) == "foo");
-    REQUIRE(std::get<2>(*i2) == "bar");
-    auto k1 = std::get<0>(*i1);
-    auto k2 = std::get<0>(*i2);
-    REQUIRE(s[k1] == std::tuple(3, "foo"));
-    REQUIRE(s[k2] == std::tuple(5, "bar"));
-    s.erase(k1);
+    auto h1 = s.insert(3, "foo");
+    auto h2 = s.insert(5, "bar");
+    REQUIRE(std::get<0>(s[h1]) == 3);
+    REQUIRE(std::get<0>(s[h2]) == 5);
+    REQUIRE(std::get<1>(s[h1]) == "foo");
+    REQUIRE(std::get<1>(s[h2]) == "bar");
+    REQUIRE(s[h1] == std::tuple(3, "foo"));
+    REQUIRE(s[h2] == std::tuple(5, "bar"));
+    s.erase(h1);
     REQUIRE(std::get<1>(*s.begin<1>()) == "bar");
     REQUIRE(std::get<1>(*s.begin<0>()) == 5);
     REQUIRE(std::get<1>(*select<1>(s).begin()) == "bar");
