@@ -1,0 +1,79 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  check_format:
+    runs-on: ubuntu-latest
+    container: { image: "ghcr.io/rollbear/clang:18" }
+    name: "check format"
+    steps:
+      - name: "checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "check format"
+        shell: bash
+        run: |
+          git config --global --add safe.directory $PWD
+          ./check_code_formatting.sh
+
+  build_linux:
+    container: { image: "ghcr.io/rollbear/${{matrix.config.container}}" }
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        config:
+          - { cxx: clang++-18, stdlib: libc++, container: "clang:18" }
+          - { cxx: g++-14, container: "gcc:14" }
+
+    name: "Linux ${{matrix.config.cxx}} ${{matrix.config.stdlib}}"
+    steps:
+      - name: "checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "setup"
+        shell: bash
+        run: |
+          STDLIB=""
+          if [ -n "${{matrix.config.stdlib}}" ]
+          then
+            STDLIB="-stdlib=${{matrix.config.stdlib}}"
+          fi
+          LIBRARY_PREFIX="/usr/local/lib/c++23${{matrix.config.stdlib}}"
+          cmake \
+            -S . \
+            -B build \
+            -D CMAKE_CXX_COMPILER=${{matrix.config.cxx}} \
+            -D CMAKE_CXX_FLAGS="${STDLIB} -Wall -Wextra -Wconversion -pedantic -Werror --coverage" \
+            -D CMAKE_PREFIX_PATH=${LIBRARY_PREFIX} \
+            -D CMAKE_VERBOSE_MAKEFILE=yes \
+            -D CMAKE_BUILD_TYPE=Debug
+              
+      - name: "build"
+        run: |
+          cmake --build build -t test_table test_type_utils test_functional test_combined
+
+      - name: "test"
+        run: |
+          ./build/test_table -s && \
+          ./build/test_type_utils -s && \
+          ./build/test_functional -s && \
+          ./build/test_combined -s
+
+      - name: "collect coverage"
+        run: |
+          COV=`echo ${{matrix.config.cxx}} | grep -q clang && echo "llvm-cov gcov"|| echo gcov`
+          ${COV} -abcfup `find . -name "test*.gcno"`
+          ls *.gcov| grep -v 'include#columnist'|xargs rm
+          find . -name "test*.gcno" | xargs rm
+
+      - name: "upload coverage"
+        uses: codecov/codecov-action@v4
+        with:
+          name: "Linux ${{matrix.config.cxx}} ${{matrix.config.stdlib}}"
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
