@@ -1,6 +1,8 @@
 [![CI Build Status](https://github.com/rollbear/columnist/actions/workflows/build.yml/badge.svg)](https://github.com/rollbear/columnist/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/rollbear/columnist/graph/badge.svg?token=GVJMZUOC5G)](https://codecov.io/gh/rollbear/columnist)
 
+<a href="https://www.buymeacoffee.com/bjornfahller"> <img src="https://cdn.buymeacoffee.com/buttons/v2/default-orange.png" height="50" width="210" alt="Buy me a coffee"/></a>
+
 **columnist** is an experimental C++23 library for
 [ECS](https://en.wikipedia.org/wiki/Entity_component_system)
 (Entity Component System), a data structure based on "struct
