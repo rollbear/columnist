@@ -264,9 +264,16 @@ struct range_index_selector {
 
         auto operator*() const
         {
-            auto& i = static_cast<const range_iterator&>(*this);
+            const range_iterator& i = *this;
             return select<Is...>(*i);
         }
+
+        using reference = void;
+        using pointer = void;
+        using difference_type = ssize_t;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = decltype(select<Is...>(
+            std::declval<typename range_iterator::value_type>()));
     };
 
     iterator begin() const { return { captured_range.begin() }; }
@@ -309,9 +316,16 @@ struct range_type_selector {
 
         auto operator*() const
         {
-            auto& i = static_cast<const range_iterator&>(*this);
+            const range_iterator& i = *this;
             return select<Ts...>(*i);
         }
+
+        using reference = void;
+        using pointer = void;
+        using difference_type = ssize_t;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = decltype(select<Ts...>(
+            std::declval<typename range_iterator::value_type>()));
     };
 
     iterator begin() const { return { captured_range.begin() }; }
