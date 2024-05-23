@@ -236,6 +236,23 @@ inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
     }
 }
 
+template <typename F, typename... Ts>
+struct function_type_selector {
+    template <typename S, typename Idxs>
+    decltype(auto) operator()(row<S, Idxs> r)
+    {
+        return captured_function(select<Ts...>(r));
+    }
+
+    F captured_function;
+};
+
+template <typename... Ts, typename F>
+inline constexpr auto select(F f)
+{
+    return function_type_selector<F, Ts...>{ f };
+}
+
 template <typename R, size_t... Is>
 struct range_index_selector {
     using range_iterator = decltype(std::declval<R&>().begin());

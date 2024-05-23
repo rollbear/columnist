@@ -5,7 +5,7 @@
 
 #include <ranges>
 
-TEST_CASE("remove_if using apply")
+TEST_CASE("erase_if using apply")
 {
 
     columnist::table<int, std::string> s;
@@ -15,16 +15,35 @@ TEST_CASE("remove_if using apply")
     s.insert(4, "four");
     s.insert(5, "five");
     s.insert(6, "six");
+    WHEN("erasing by index")
     {
         auto count
             = erase_if(s, columnist::select<0>(columnist::apply([](auto t) {
                            return t > 1;
                        })));
-        REQUIRE(count == 5);
-        REQUIRE(s.size() == 1);
-        auto [num, name] = *s.begin();
-        REQUIRE(num == 1);
-        REQUIRE(name == "one");
+        THEN("matching objects are erased")
+        {
+            REQUIRE(count == 5);
+            REQUIRE(s.size() == 1);
+            auto [num, name] = *s.begin();
+            REQUIRE(num == 1);
+            REQUIRE(name == "one");
+        }
+    }
+    AND_WHEN("erasing ty type")
+    {
+        auto count
+            = erase_if(s, columnist::select<int>(columnist::apply([](auto t) {
+                           return t > 1;
+                       })));
+        THEN("matching objects are erased")
+        {
+            REQUIRE(count == 5);
+            REQUIRE(s.size() == 1);
+            auto [num, name] = *s.begin();
+            REQUIRE(num == 1);
+            REQUIRE(name == "one");
+        }
     }
 }
 
