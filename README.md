@@ -3,6 +3,8 @@
 
 <a href="https://www.buymeacoffee.com/bjornfahller"> <img src="https://cdn.buymeacoffee.com/buttons/v2/default-orange.png" height="50" width="210" alt="Buy me a coffee"/></a>
 
+
+
 **columnist** is an experimental C++23 library for
 [ECS](https://en.wikipedia.org/wiki/Entity_component_system)
 (Entity Component System), a data structure based on "struct
@@ -15,7 +17,8 @@ Status: **Highly Experimental**
 
 ### Examples
 
-#### General usage: [Compiler Explorer](https://godbolt.org/z/1TbfTssf1)
+#### General usage: [![Static Badge](https://img.shields.io/badge/compiler%20explorer%20-%20?logo=Compiler%20Explorer&logoColor=%23000000)](https://godbolt.org/z/1TbfTssf1)
+
 ```C++
 #include <columnist/table.hpp>
 #include <columnist/functional.hpp>
@@ -63,7 +66,8 @@ int main() {
 }
 ```
 
-#### Code generation with columninist and [strong_type](https://github.com/rollbear/strong_type) [Compiler Explorer](https://godbolt.org/z/bMKPxGTW7)
+
+#### Code generation with columninist and [strong_type](https://github.com/rollbear/strong_type) [![Static Badge](https://img.shields.io/badge/compiler%20explorer%20-%20?logo=Compiler%20Explorer&logoColor=%23000000)](https://godbolt.org/z/bMKPxGTW7)
 
 ```C++
 #include <columnist/table.hpp>
