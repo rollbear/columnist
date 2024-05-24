@@ -11,7 +11,7 @@ using table_ids = columnist::table<int, double, std::string>;
 
 template <typename T, typename U = T, typename = void>
 struct is_nothrow_comparable {
-    inline static constexpr bool value = false;
+    static constexpr bool value = false;
 };
 
 template <typename T, typename U>
@@ -19,7 +19,7 @@ struct is_nothrow_comparable<
     T,
     U,
     std::void_t<decltype(std::declval<T>() == std::declval<U>())>> {
-    inline static constexpr bool value
+    static constexpr bool value
         = noexcept(std::declval<T>() == std::declval<U>());
 };
 
@@ -193,7 +193,8 @@ TEST_CASE("erase_if")
     s.insert(5, "five");
     s.insert(6, "six");
     {
-        auto count = erase_if(s, [](auto&& t) { return (get<0>(t) % 2) == 0; });
+        auto count
+            = erase_if(s, [](const auto& t) { return (get<0>(t) % 2) == 0; });
         REQUIRE(count == 3);
         std::set<std::tuple<int, std::string>> expected{ { 1, "one" },
                                                          { 3, "three" },
@@ -206,8 +207,9 @@ TEST_CASE("erase_if")
         REQUIRE(expected.empty());
     }
     {
-        auto count = erase_if(
-            s, columnist::select<0>([](auto&& t) { return get<0>(t) > 1; }));
+        auto count = erase_if(s, columnist::select<0>([](const auto& t) {
+                                  return get<0>(t) > 1;
+                              }));
         REQUIRE(count == 2);
         REQUIRE(s.size() == 1);
         auto [num, name] = *s.begin();

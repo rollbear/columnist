@@ -114,7 +114,7 @@ using as_tuple = decltype(get_tuple<T>(std::declval<T>()));
 template <typename T>
 inline constexpr size_t tuple_size_v = [] {
     using TT = std::remove_cvref_t<T>;
-    if constexpr (requires { get_tuple<TT>(std::declval<TT&>()); }) {
+    if constexpr (requires(TT& tt) { get_tuple<TT>(tt); }) {
         return std::tuple_size_v<std::remove_reference_t<as_tuple<TT>>>;
     } else {
         return std::tuple_size_v<TT>;

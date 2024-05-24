@@ -40,7 +40,7 @@ public:
     row() = default;
 
     template <size_t... PIs>
-    row(const row<Store, std::index_sequence<PIs...>>& r)
+    explicit row(const row<Store, std::index_sequence<PIs...>>& r) noexcept
     : store_(r.store_), idx_(r.idx_)
     {}
 
@@ -156,6 +156,14 @@ public:
     sentinel end() const;
     sentinel cend() const;
 
+    friend auto begin(table& t) { return t.begin(); }
+
+    friend const_iterator cbegin(const table& t) { return t.cbegin(); }
+
+    friend sentinel end(const table& t) { return t.end(); }
+
+    friend sentinel cend(const table& t) { return t.cend(); }
+
     template <typename P>
     friend size_t erase_if(table& s, P p)
     {
@@ -199,13 +207,13 @@ struct function_selector {
 inline constexpr auto identity = [](auto t) { return t; };
 
 template <size_t... Is, typename F>
-inline constexpr auto select(F f)
+constexpr auto select(F f)
 {
     return function_selector<F, Is...>{ f };
 };
 
 template <size_t... Ins, typename... Ts, typename Table, size_t... Is>
-inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
+constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
     constexpr auto all_indexes_in_range = ((Ins < sizeof...(Is)) && ...);
     static_assert(
@@ -220,7 +228,7 @@ inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 }
 
 template <typename... Ts, typename Table, size_t... Is>
-inline constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
+constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
     using TT = std::remove_cvref_t<Table>;
     constexpr bool valid_types
@@ -248,7 +256,7 @@ struct function_type_selector {
 };
 
 template <typename... Ts, typename F>
-inline constexpr auto select(F f)
+constexpr auto select(F f)
 {
     return function_type_selector<F, Ts...>{ f };
 }
@@ -258,7 +266,7 @@ struct range_index_selector {
     using range_iterator = decltype(std::declval<R&>().begin());
 
     struct iterator : range_iterator {
-        iterator(range_iterator it)
+        explicit iterator(range_iterator it) noexcept
         : range_iterator(it)
         {}
 
@@ -276,11 +284,19 @@ struct range_index_selector {
             std::declval<typename range_iterator::value_type>()));
     };
 
-    iterator begin() const { return { captured_range.begin() }; }
+    iterator begin() const
+    {
+        using std::ranges::begin;
+        return iterator{ begin(captured_range) };
+    }
 
     iterator cbegin() const { return begin(); }
 
-    auto end() const { return captured_range.end(); }
+    auto end() const
+    {
+        using std::ranges::end;
+        return end(captured_range);
+    }
 
     auto cend() const { return end(); }
 
@@ -310,7 +326,7 @@ struct range_type_selector {
     using range_iterator = decltype(std::declval<R&>().begin());
 
     struct iterator : range_iterator {
-        iterator(range_iterator it)
+        explicit iterator(range_iterator it) noexcept
         : range_iterator(it)
         {}
 
@@ -328,11 +344,19 @@ struct range_type_selector {
             std::declval<typename range_iterator::value_type>()));
     };
 
-    iterator begin() const { return { captured_range.begin() }; }
+    iterator begin() const
+    {
+        using std::ranges::begin;
+        return iterator{ begin(captured_range) };
+    }
 
     iterator cbegin() const { return begin(); }
 
-    auto end() const { return captured_range.end(); }
+    auto end() const
+    {
+        using std::ranges::end;
+        return end(captured_range);
+    }
 
     auto cend() const { return end(); }
 
