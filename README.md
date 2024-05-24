@@ -67,40 +67,72 @@ int main() {
 ```
 
 
-#### Code generation with columninist and [strong_type](https://github.com/rollbear/strong_type) [![Static Badge](https://img.shields.io/badge/compiler%20explorer%20-%20?logo=Compiler%20Explorer&logoColor=%23000000)](https://godbolt.org/z/bMKPxGTW7)
+#### Code generation with columninist and [strong_type](https://github.com/rollbear/strong_type) [![Static Badge](https://img.shields.io/badge/compiler%20explorer%20-%20?logo=Compiler%20Explorer&logoColor=%23000000)](https://godbolt.org/z/rbsY8sjW5)
 
 ```C++
-#include <columnist/table.hpp>
-#include <columnist/functional.hpp>
-
 #include <strong_type/type.hpp>
 #include <strong_type/affine_point.hpp>
 #include <strong_type/ordered.hpp>
-#include <strong_type/scalable_with.hpp>
 
+#include <columnist/functional.hpp>
+#include <columnist/table.hpp>
 
 #include <ranges>
 #include <algorithm>
+#include <chrono>
 
-using acceleration = strong::type<float, struct atag>;
-using delta_x = strong::type<float, struct xtag, strong::difference>;
-using delta_y = strong::type<float, struct ytag, strong::difference, strong::scalable_with<acceleration>>;
-using pos_x = strong::type<float, struct xtag, strong::affine_point<delta_x>, strong::ordered>;
-using pos_y = strong::type<float, struct ytag, strong::affine_point<delta_y>, strong::ordered>;
+template <typename tag>
+using acceleration = strong::type<float, tag>;
+template <typename tag>
+using velocity = strong::type<float, tag, strong::difference>;
+template <typename tag, typename ... mods>
+using distance = strong::type<float, tag, strong::difference, mods...>;
+template <typename tag, typename delta, typename ... mods>
+using pos = strong::type<float, tag, strong::affine_point<delta>, mods...>;
 
-using objects = columnist::table<pos_x, pos_y, delta_x, delta_y>;
-
-static inline auto less_equal = [](auto x) {
-    return [x](auto y) { return y <= x;};
-};
-
-void update_pos(objects& objs, acceleration a)
+template <typename tag>
+inline auto operator*(acceleration<tag> a, std::chrono::seconds t)
 {
-    std::ranges::for_each(objs | columnist::select<pos_y, delta_y>(),
-                          columnist::apply([a](auto& y, auto& dy) { dy*= a; y+= dy;}));
-    std::ranges::for_each(objs | columnist::select<pos_x, delta_x>(),
-                          columnist::apply([](auto& x, auto dx){x+= dx;}));
+    return velocity<tag>{value_of(a)*t.count()};
 }
+
+template <typename tag>
+inline auto operator*(std::chrono::seconds t, acceleration<tag> a) { return a * t; }
+
+template <typename tag>
+inline auto operator*(velocity<tag> v, std::chrono::seconds t)
+{
+    return distance<tag>{value_of(v) * t.count()};
+}
+
+template <typename tag>
+inline auto operator*(std::chrono::seconds t, velocity<tag> v) { return v * t; }
+
+
+using acceleration_y = acceleration<struct ytag>;
+using velocity_x = velocity<struct xtag>;
+using velocity_y = velocity<struct ytag>;
+using delta_x = distance<struct xtag>;
+using delta_y = distance<struct ytag>;
+using pos_x = pos<struct xtag, delta_x, strong::ordered>;
+using pos_y = pos<struct ytag, delta_y, strong::ordered>;
+using delta_x = strong::type<float, struct xtag, strong::difference>;
+
+
+using objects = columnist::table<pos_x, pos_y, velocity_x, velocity_y>;
+
+
+static inline auto less_equal = [](auto x) { return [x](auto y) { return y <= x;}; };
+
+template <typename ... Ts>
+inline auto abs(strong::type<Ts...> v) { value_of(v) = abs(value_of(v)); return v; }
+
+void remove_stopped_objetcts(objects& objs)
+{
+    constexpr auto stopped = [](auto dx, auto dy){ return abs(dx) < delta_x(0.01) && abs(dy) < delta_y(0.01);};
+    erase_if(objs, columnist::select<delta_x, delta_y>(columnist::apply(stopped)));
+}
+
 
 void bounce_on_floor(objects& objs)
 {
@@ -108,13 +140,17 @@ void bounce_on_floor(objects& objs)
     auto objs_on_floor = objs
                        | std::ranges::views::filter(columnist::select<pos_y>(columnist::apply(less_equal(floor))));
     for (auto [dy] : objs_on_floor | columnist::select<delta_y>()) {
-        value_of(dy) = -0.95*value_of(dy);
+        dy *= -0.95;
     }
 }
 
-void remove_stopped_objetcts(objects& objs)
+
+void update_pos(objects& objs, acceleration_y a, std::chrono::seconds t)
 {
-    constexpr auto stopped = [](auto dx, auto dy){ return abs(value_of(dx)) < 0.01 && abs(value_of(dy)) < 0.01;};
-    erase_if(objs, columnist::select<delta_x, delta_y>(columnist::apply(stopped)));
+    std::ranges::for_each(objs | columnist::select<pos_y, velocity_y>(),
+                          columnist::apply([a,t](auto& y, auto& vy) { vy+= a*t; y+= vy*t;}));
+    std::ranges::for_each(objs | columnist::select<pos_x, velocity_x>(),
+                          columnist::apply([t](auto& x, auto vx){x+= vx*t;}));
 }
+
 ```
