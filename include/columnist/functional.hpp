@@ -139,7 +139,7 @@ concept appliccable = std::invoke(
     std::make_index_sequence<internal::tuple_size_v<T>>{});
 
 template <typename F>
-struct apply_ {
+struct [[nodiscard]] apply_ {
     template <typename Self, appliccable<internal::forwarded_like<Self, F>> T>
     constexpr decltype(auto) operator()(this Self&& self, T&& t) noexcept(
         internal::is_nothrow_appliccable_v<internal::forwarded_like<Self, F>,

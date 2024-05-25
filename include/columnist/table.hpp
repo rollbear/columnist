@@ -31,7 +31,7 @@ template <typename Table, typename>
 class row;
 
 template <typename Table, size_t... Is>
-class row<Table, std::index_sequence<Is...>> {
+class [[nodiscard]] row<Table, std::index_sequence<Is...>> {
     friend Table;
     template <typename, typename>
     friend class row;
@@ -44,7 +44,7 @@ public:
     : table_(r.table_), idx_(r.idx_)
     {}
 
-    Table::row_id row_id() const { return table_->rindex_[idx_]; }
+    [[nodiscard]] Table::row_id row_id() const { return table_->rindex_[idx_]; }
 
     template <size_t I>
         requires(I < sizeof...(Is))
@@ -225,45 +225,31 @@ struct function_selector {
 };
 
 template <size_t... Is, typename F>
+    requires(not is_row_v<F> && not row_range<F>)
 constexpr auto select(F f)
 {
     return function_selector<F, Is...>{ f };
 };
 
-template <size_t... Ins, typename... Ts, typename Table, size_t... Is>
+template <size_t... Ins, typename Table, size_t... Is>
+    requires((Ins < sizeof...(Is)) && ...)
 constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
-    constexpr auto all_indexes_in_range = ((Ins < sizeof...(Is)) && ...);
-    static_assert(
-        all_indexes_in_range,
-        "Valid indexes are ini the range [0..number of elements in row)");
-    if constexpr (all_indexes_in_range) {
-        constexpr auto indexes = std::array{ Is... };
-        return row<Table, std::index_sequence<indexes[Ins]...>>{ r };
-    } else {
-        return row<Table, std::index_sequence<>>{};
-    }
+    constexpr auto indexes = std::array{ Is... };
+    return row<Table, std::index_sequence<indexes[Ins]...>>{ r };
 }
 
 template <typename... Ts, typename Table, size_t... Is>
+    requires((type_is_one_of<Ts, typename Table::template element_type<Is>...>
+              && ...))
 constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 {
-    using TT = std::remove_cvref_t<Table>;
-    constexpr bool valid_types
-        = (type_is_one_of<Ts, typename TT::template element_type<Is>...>
-           && ...);
-    static_assert(valid_types,
-                  "Valid types are those represented by the row instance");
-    if constexpr (valid_types) {
-        return select<
-            type_index<Ts, typename TT::template element_type<Is>...>...>(r);
-    } else {
-        return row<Table, std::index_sequence<>>{};
-    }
+    return select<
+        type_index<Ts, typename Table::template element_type<Is>...>...>(r);
 }
 
 template <typename F, typename... Ts>
-struct function_type_selector {
+struct [[nodiscard]] function_type_selector {
     template <typename S, typename Idxs>
     decltype(auto) operator()(row<S, Idxs> r)
     {
@@ -274,13 +260,14 @@ struct function_type_selector {
 };
 
 template <typename... Ts, typename F>
-constexpr auto select(F f)
+    requires(not is_row_v<F> && not row_range<F>)
+[[nodiscard]] constexpr auto select(F f)
 {
     return function_type_selector<F, Ts...>{ f };
 }
 
 template <row_range R, size_t... Is>
-struct range_index_selector {
+struct [[nodiscard]] range_index_selector {
     using range_iterator = decltype(std::declval<R&>().begin());
 
     struct iterator : range_iterator {
@@ -323,15 +310,17 @@ struct range_index_selector {
 
 template <size_t... Is, row_range R>
 range_index_selector<R, Is...> select(R& r)
+    requires requires { select<Is...>(*r.begin()); }
 {
     return { r };
 }
 
 template <size_t... Is>
-struct range_selector_maker {};
+struct [[nodiscard]] range_selector_maker {};
 
 template <row_range R, size_t... Is>
 range_index_selector<R, Is...> operator|(R& r, range_selector_maker<Is...>)
+    requires requires { (select<Is...>(*r.begin())); }
 {
     return { r };
 };
@@ -343,7 +332,7 @@ range_selector_maker<Is...> select()
 }
 
 template <row_range R, typename... Ts>
-struct range_type_selector {
+struct [[nodiscard]] range_type_selector {
     using range_iterator = decltype(std::declval<R&>().begin());
 
     struct iterator : range_iterator {
@@ -386,15 +375,17 @@ struct range_type_selector {
 
 template <typename... Ts, row_range R>
 range_type_selector<R, Ts...> select(R& r)
+    requires requires { select<Ts...>(*r.begin()); }
 {
     return { r };
 }
 
 template <typename... Ts>
-struct range_type_selector_maker {};
+struct [[nodiscard]] range_type_selector_maker {};
 
 template <row_range R, typename... Ts>
 range_type_selector<R, Ts...> operator|(R& r, range_type_selector_maker<Ts...>)
+    requires requires { select<Ts...>(*r.begin()); }
 {
     return { r };
 }
