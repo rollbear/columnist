@@ -204,8 +204,6 @@ struct function_selector {
     F captured_function;
 };
 
-inline constexpr auto identity = [](auto t) { return t; };
-
 template <size_t... Is, typename F>
 constexpr auto select(F f)
 {
