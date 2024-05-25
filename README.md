@@ -229,6 +229,20 @@ A range type whose iterators return a table `row` type.
 
 ### Free functions
 
+#### `template <size_t ... Is> constexpr auto select(row r)`
+
+Returns a row with the `Is...` elements of `r`. Note that each value `Is` refers
+to the number of columns referred to by `r`, not the columns of the owning
+table, therefore `select()` can only be used to narrow a row to a subset of the
+elements referred to by `r`.
+
+#### `template <typename ... Ts> constexpr auto select(row r)`
+
+Returns a row with the `Ts...` types from `r`. Note that each type `Ts` refers
+to the types referred to by `r`, not the types of the owning table, therefore
+`select()` can only be used to narrow a row to a subset of the elements referred
+to by `r`.
+
 #### `template <size_t ... Is, typename F> constexpr auto select(F f)`
 
 Returns a callable that takes a `row` `r`, and calls `f(get<Is>(r)...)`
