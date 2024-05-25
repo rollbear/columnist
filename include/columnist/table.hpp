@@ -169,21 +169,13 @@ public:
     sentinel end() const;
     sentinel cend() const;
 
-    friend auto begin(table& t) { return t.begin(); }
-
-    friend const_iterator cbegin(const table& t) { return t.cbegin(); }
-
-    friend sentinel end(const table& t) { return t.end(); }
-
-    friend sentinel cend(const table& t) { return t.cend(); }
-
-    template <typename P>
-    friend size_t erase_if(table& s, P p)
+    template <typename Predicate>
+    friend size_t erase_if(table& s, Predicate predicate)
     {
         size_t rv = 0;
         auto i = s.begin();
         while (i != s.end()) {
-            if (p(*i)) {
+            if (predicate(*i)) {
                 ++rv;
                 s.erase(i);
             } else {
