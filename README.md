@@ -66,7 +66,6 @@ int main() {
 }
 ```
 
-
 ### Code generation with columninist and [strong_type](https://github.com/rollbear/strong_type) [![Static Badge](https://img.shields.io/badge/compiler%20explorer%20-%20?logo=Compiler%20Explorer&logoColor=%23000000)](https://godbolt.org/z/rbsY8sjW5)
 
 ```C++
@@ -221,6 +220,7 @@ public:
     bool operator==(const row<Table2, std::index_sequence<Is...>>& rh) const noexcept;
 };
 ```
+
 ### Concepts
 
 #### `row_range`
@@ -275,7 +275,6 @@ subselection of columns from the types `Ts`.
 Returns a range spanning the same elements as `r`, but with a
 subselection of columns from the types `Ts`.
 
-
 ## `<columnist/functional.hpp`
 
 ### Overview
@@ -286,6 +285,6 @@ Higher order function generalizing `std::apply()`.
 
 If `f` is a function accepting `Ts...` as arguments, then `apply(f)` is
 callable with a type `T` for which `get<Is>()` returns a type matching `Ts` for
-all indexes. In particular it is callable with `columnist::row<>`, `std::tuple<Ts...>` or something
-that inherits from `std::tuple<Ts...>`.
+all indexes. In particular, it is callable with `columnist::row<>`,
+`std::tuple<Ts...>` or something that inherits from `std::tuple<Ts...>`.
 
