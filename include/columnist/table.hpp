@@ -27,7 +27,7 @@ static_assert(std::is_same_v<int, type_of_t<int>>);
 
 } // namespace internal
 
-template <typename Store, typename>
+template <typename Table, typename>
 class row;
 
 template <typename Table, size_t... Is>
@@ -85,6 +85,15 @@ private:
     size_t idx_ = 0;
 };
 
+template <typename>
+constexpr bool is_row_v = false;
+
+template <typename Table, size_t... Is>
+constexpr bool is_row_v<row<Table, std::index_sequence<Is...>>> = true;
+
+template <typename R>
+concept row_range = is_row_v<decltype(*std::declval<R&>().begin())>;
+
 template <typename... Ts>
 class table {
     template <typename S, typename Is>
@@ -95,6 +104,10 @@ public:
     using element_type = std::tuple_element_t<I, std::tuple<Ts...>>;
     template <typename T>
     static constexpr size_t type_index = columnist::type_index<T, Ts...>;
+
+    using row = columnist::row<table, std::index_sequence_for<Ts...>>;
+    using const_row
+        = columnist::row<const table, std::index_sequence_for<Ts...>>;
 
     struct row_id {
         row_id next_generation() const
@@ -138,13 +151,13 @@ public:
 
     bool has_row_id(row_id k) const;
 
-    row<table, std::index_sequence_for<Ts...>> operator[](row_id k)
+    row operator[](row_id k)
     {
         assert(has_row_id(k));
         return { this, index_[k.index].index };
     }
 
-    row<const table, std::index_sequence_for<Ts...>> operator[](row_id k) const
+    const_row operator[](row_id k) const
     {
         assert(has_row_id(k));
         return { this, index_[k.index].index };
@@ -259,7 +272,7 @@ constexpr auto select(F f)
     return function_type_selector<F, Ts...>{ f };
 }
 
-template <typename R, size_t... Is>
+template <row_range R, size_t... Is>
 struct range_index_selector {
     using range_iterator = decltype(std::declval<R&>().begin());
 
@@ -301,10 +314,16 @@ struct range_index_selector {
     R& captured_range;
 };
 
+template <size_t... Is, row_range R>
+range_index_selector<R, Is...> select(R& r)
+{
+    return { r };
+}
+
 template <size_t... Is>
 struct range_selector_maker {};
 
-template <typename R, size_t... Is>
+template <row_range R, size_t... Is>
 range_index_selector<R, Is...> operator|(R& r, range_selector_maker<Is...>)
 {
     return { r };
@@ -316,10 +335,7 @@ range_selector_maker<Is...> select()
     return {};
 }
 
-template <typename... Ts>
-struct range_type_selector_maker {};
-
-template <typename R, typename... Ts>
+template <row_range R, typename... Ts>
 struct range_type_selector {
     using range_iterator = decltype(std::declval<R&>().begin());
 
@@ -361,7 +377,16 @@ struct range_type_selector {
     R& captured_range;
 };
 
-template <typename R, typename... Ts>
+template <typename... Ts, row_range R>
+range_type_selector<R, Ts...> select(R& r)
+{
+    return { r };
+}
+
+template <typename... Ts>
+struct range_type_selector_maker {};
+
+template <row_range R, typename... Ts>
 range_type_selector<R, Ts...> operator|(R& r, range_type_selector_maker<Ts...>)
 {
     return { r };
@@ -380,7 +405,7 @@ class table<Ts...>::iterator_t {
 
 public:
     using iterator_category = std::forward_iterator_tag;
-    using value_type = row<T, std::index_sequence_for<Ts...>>;
+    using value_type = columnist::row<T, std::index_sequence_for<Ts...>>;
     using reference = value_type;
     using pointer = void;
     using difference_type = ssize_t;
@@ -421,10 +446,7 @@ public:
         return copy;
     }
 
-    auto operator*() const noexcept
-    {
-        return row<T, std::index_sequence_for<Ts...>>(table_, idx_);
-    }
+    value_type operator*() const noexcept { return value_type(table_, idx_); }
 
 private:
     iterator_t(T* s, size_t idx)
