@@ -30,9 +30,9 @@ static_assert(std::is_same_v<int, type_of_t<int>>);
 template <typename Store, typename>
 class row;
 
-template <typename Store, size_t... Is>
-class row<Store, std::index_sequence<Is...>> {
-    friend Store;
+template <typename Table, size_t... Is>
+class row<Table, std::index_sequence<Is...>> {
+    friend Table;
     template <typename, typename>
     friend class row;
 
@@ -40,11 +40,11 @@ public:
     row() = default;
 
     template <size_t... PIs>
-    explicit row(const row<Store, std::index_sequence<PIs...>>& r) noexcept
-    : store_(r.store_), idx_(r.idx_)
+    explicit row(const row<Table, std::index_sequence<PIs...>>& r) noexcept
+    : table_(r.table_), idx_(r.idx_)
     {}
 
-    Store::row_id row_id() const { return store_->rindex_[idx_]; }
+    Table::row_id row_id() const { return table_->rindex_[idx_]; }
 
     template <size_t I>
         requires(I < sizeof...(Is))
@@ -52,8 +52,8 @@ public:
     {
         using indices = std::tuple<std::integral_constant<size_t, Is>...>;
         constexpr auto column = std::tuple_element_t<I, indices>::value;
-        auto& element = std::get<column>(r.store_->data_)[r.idx_];
-        if constexpr (std::is_const_v<Store>) {
+        auto& element = std::get<column>(r.table_->data_)[r.idx_];
+        if constexpr (std::is_const_v<Table>) {
             return std::as_const(element);
         } else {
             return element;
@@ -64,24 +64,24 @@ public:
     bool operator==(const std::tuple<Ts...>& rh) const
     {
         auto elementwise_equality = [this](const auto&... vs) {
-            return ((std::get<Is>(store_->data_)[idx_] == vs) && ...);
+            return ((std::get<Is>(table_->data_)[idx_] == vs) && ...);
         };
         return std::apply(elementwise_equality, rh);
     }
 
     template <typename S>
-        requires(std::is_same_v<const S&, const Store&>)
+        requires(std::is_same_v<const S&, const Table&>)
     bool operator==(const row<S, std::index_sequence<Is...>>& rh) const noexcept
     {
-        return store_ == rh.store_ && idx_ == rh.idx_;
+        return table_ == rh.table_ && idx_ == rh.idx_;
     }
 
 private:
-    row(Store* store, size_t idx)
-    : store_(store), idx_(idx)
+    row(Table* store, size_t idx)
+    : table_(store), idx_(idx)
     {}
 
-    Store* store_ = nullptr;
+    Table* table_ = nullptr;
     size_t idx_ = 0;
 };
 
@@ -423,8 +423,6 @@ public:
     {
         return row<T, std::index_sequence_for<Ts...>>(table_, idx_);
     }
-
-    iterator_t() = default;
 
 private:
     iterator_t(T* s, size_t idx)
