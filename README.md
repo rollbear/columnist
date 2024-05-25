@@ -15,9 +15,9 @@ elements at the same row_id for each column is a row.
 
 Status: **Highly Experimental**
 
-### Examples
+## Examples
 
-#### General usage: [![Static Badge](https://img.shields.io/badge/compiler%20explorer%20-%20?logo=Compiler%20Explorer&logoColor=%23000000)](https://godbolt.org/z/1TbfTssf1)
+### General usage: [![Static Badge](https://img.shields.io/badge/compiler%20explorer%20-%20?logo=Compiler%20Explorer&logoColor=%23000000)](https://godbolt.org/z/1TbfTssf1)
 
 ```C++
 #include <columnist/table.hpp>
@@ -67,7 +67,7 @@ int main() {
 ```
 
 
-#### Code generation with columninist and [strong_type](https://github.com/rollbear/strong_type) [![Static Badge](https://img.shields.io/badge/compiler%20explorer%20-%20?logo=Compiler%20Explorer&logoColor=%23000000)](https://godbolt.org/z/rbsY8sjW5)
+### Code generation with columninist and [strong_type](https://github.com/rollbear/strong_type) [![Static Badge](https://img.shields.io/badge/compiler%20explorer%20-%20?logo=Compiler%20Explorer&logoColor=%23000000)](https://godbolt.org/z/rbsY8sjW5)
 
 ```C++
 #include <strong_type/type.hpp>
@@ -154,3 +154,124 @@ void update_pos(objects& objs, acceleration_y a, std::chrono::seconds t)
 }
 
 ```
+
+# Documentation
+
+## `<columnist/table.hpp>`
+
+### Overview
+
+```C++
+namespace columnist {
+template <typename ... Ts>
+class table {
+public:
+    struct row_id {
+        uint32_t index:24;
+        uint8_t generation;
+    };
+    using row = ...
+    using const_row = ...
+    class iterator;
+    class const_iterator;
+    class sentinel;
+    
+    size_t size() const;
+    bool empty() const;
+    template <typename ... Us>
+        requires(std::is_constructible_v<Ts, Us> && ...)
+    row_id insert(Us&& ... us);
+    
+    void erase(row_id);
+    void erase(const_iterator);
+    
+    bool has_row_id(row_id) const;
+    
+    row operator[](row_id);
+    const_row operator[](row_id) const;
+    
+    iterator begin();
+    const_iterator begin() const;
+    const_iterator cbegin() const;
+    sentinel end() const;
+    sentinel cend() const;
+    
+    template <typename Predicate>
+    friend size_t erase_if(table&, Predicate);
+};
+
+template <typename Table, std::index_sequence<Is...>>
+class row {
+public:
+    row();
+    template <size_t ... PIs>
+    explicit row(const row<Table, std::index_sequence<PIs...>>&) noexcept;
+    
+    Table::row_id row_id() const;
+    
+    template <size_t I>
+    friend decltype(auto) get(row r);
+    template <typename T>
+    friend decltype(auto) get(row r);
+    
+    template <typename ... Ts>
+    bool operator==(const tuple<Ts...>&) const;
+    template <typename Table2>
+        requires(is_same_v<const Table, const Table2>)
+    bool operator==(const row<Table2, std::index_sequence<Is...>>& rh) const noexcept;
+};
+```
+### Concepts
+
+#### `row_range`
+
+A range type whose iterators return a table `row` type.
+
+### Free functions
+
+#### `template <size_t ... Is, typename F> constexpr auto select(F f)`
+
+Returns a callable that takes a `row` `r`, and calls `f(get<Is>(r)...)`
+
+The function `f` must be callable with a `row` with `Is` indexes.
+
+#### `template <typename ... Ts, typename F> constexpr auto select(F f)`
+
+Returns a callable that takes a `row` r, and calls `f(std::get<Ts>(r)...)`
+
+The function `f` must be callable with a `row` with `Ts` members.
+
+#### `template <size_t ... Is, row_range R> select(R& r)`
+
+Returns a range spanning the same elements as `r`, but with a
+subselection of columns from the indexes `Is`.
+
+#### `template <row_range R, size_t ... Is> operator|(R, select())`
+
+Returns a range spanning the same elements as `r`, but with a
+subselection of columns from the indexes `Is`.
+
+#### `template <typename ... Ts, row_range R> select(R& r`
+
+Returns a range spanning the same elements as `r`, but with a
+subselection of columns from the types `Ts`.
+
+#### `template <row_range R, typename ... Ts> operator|(R, select())`
+
+Returns a range spanning the same elements as `r`, but with a
+subselection of columns from the types `Ts`.
+
+
+## `<columnist/functional.hpp`
+
+### Overview
+
+#### `inline constexpr apply = []<typename F>(F&&f)`
+
+Higher order function generalizing `std::apply()`.
+
+If `f` is a function accepting `Ts...` as arguments, then `apply(f)` is
+callable with a type `T` for which `get<Is>()` returns a type matching `Ts` for
+all indexes. In particular it is callable with `columnist::row<>`, `std::tuple<Ts...>` or something
+that inherits from `std::tuple<Ts...>`.
+
