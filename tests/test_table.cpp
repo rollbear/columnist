@@ -191,36 +191,74 @@ TEST_CASE("pluralized")
 
 TEST_CASE("erase_if")
 {
-    table<int, std::string> s;
-    s.insert(1, "one");
-    s.insert(2, "two");
-    s.insert(3, "three");
-    s.insert(4, "four");
-    s.insert(5, "five");
-    s.insert(6, "six");
+    GIVEN("a table of ints and strings")
     {
-        auto count
-            = erase_if(s, [](const auto& t) { return (get<0>(t) % 2) == 0; });
-        REQUIRE(count == 3);
-        std::set<std::tuple<int, std::string>> expected{ { 1, "one" },
-                                                         { 3, "three" },
-                                                         { 5, "five" } };
-        for (auto [num, name] : s) {
-            auto i = expected.find({ num, name });
-            REQUIRE(i != expected.end());
-            expected.erase(i);
+        table<int, std::string> s;
+        s.insert(1, "one");
+        s.insert(2, "two");
+        s.insert(3, "three");
+        s.insert(4, "four");
+        s.insert(5, "five");
+        s.insert(6, "six");
+        WHEN("erasing with a predicate on a whole row")
+        {
+            auto count = erase_if(
+                s, [](const auto& t) { return (get<0>(t) % 2) == 0; });
+            THEN("the selected objects are erased")
+            {
+                REQUIRE(count == 3);
+                std::set<std::tuple<int, std::string>> expected{
+                    { 1, "one" }, { 3, "three" }, { 5, "five" }
+                };
+                for (auto [num, name] : s) {
+                    auto i = expected.find({ num, name });
+                    REQUIRE(i != expected.end());
+                    expected.erase(i);
+                }
+                REQUIRE(expected.empty());
+            }
         }
-        REQUIRE(expected.empty());
-    }
-    {
-        auto count = erase_if(s, columnist::select<0>([](const auto& t) {
-                                  return get<0>(t) > 1;
-                              }));
-        REQUIRE(count == 2);
-        REQUIRE(s.size() == 1);
-        auto [num, name] = *s.begin();
-        REQUIRE(num == 1);
-        REQUIRE(name == "one");
+        AND_WHEN("erasing with a predicate selecting a column on index")
+        {
+            auto count = erase_if(s, columnist::select<0>([](const auto& t) {
+                                      return get<int>(t) > 3;
+                                  }));
+            THEN("the expected objects are erased")
+            {
+                REQUIRE(count == 3);
+                REQUIRE(s.size() == 3);
+                std::set<std::tuple<int, std::string>> expected{
+                    { 1, "one" }, { 2, "two" }, { 3, "three" }
+                };
+                for (auto [k, v] : s) {
+                    auto i = expected.find({ k, v });
+                    REQUIRE(i != expected.end());
+                    expected.erase(i);
+                }
+                REQUIRE(expected.empty());
+            }
+        }
+        AND_WHEN("erasing with a predicate selecting a column on type")
+        {
+            auto count = erase_if(s, columnist::select<int>([](const auto& t) {
+                                      auto [num] = t;
+                                      return num < 4;
+                                  }));
+            THEN("the expected objects are erased")
+            {
+                REQUIRE(count == 3);
+                REQUIRE(s.size() == 3);
+                std::set<std::tuple<int, std::string>> expected{ { 4, "four" },
+                                                                 { 5, "five" },
+                                                                 { 6, "six" } };
+                for (auto [k, v] : s) {
+                    auto i = expected.find({ k, v });
+                    REQUIRE(i != expected.end());
+                    expected.erase(i);
+                }
+                REQUIRE(expected.empty());
+            }
+        }
     }
 }
 
