@@ -54,14 +54,14 @@ jobs:
               
       - name: "build"
         run: |
-          cmake --build build -t test_table test_type_utils test_functional test_combined
+          cmake --build build -t tests/test_table tests/test_type_utils tests/test_functional tests/test_combined
 
       - name: "test"
         run: |
-          ./build/test_table -s && \
-          ./build/test_type_utils -s && \
-          ./build/test_functional -s && \
-          ./build/test_combined -s
+          ./build/tests/test_table -s && \
+          ./build/tests/test_type_utils -s && \
+          ./build/tests/test_functional -s && \
+          ./build/tests/test_combined -s
 
       - name: "collect coverage"
         run: |

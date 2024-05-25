@@ -1,5 +1,5 @@
-#include <columnist/functional.hpp>
-#include <columnist/table.hpp>
+#include "columnist/functional.hpp"
+#include "columnist/table.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
