@@ -229,48 +229,48 @@ A range type whose iterators return a table `row` type.
 
 ### Free functions
 
-#### `template <size_t ... Is> constexpr auto select(row r)`
+#### `template <size_t ... Is> constexpr auto select<Is...>(row r)`
 
 Returns a row with the `Is...` elements of `r`. Note that each value `Is` refers
 to the number of columns referred to by `r`, not the columns of the owning
 table, therefore `select()` can only be used to narrow a row to a subset of the
 elements referred to by `r`.
 
-#### `template <typename ... Ts> constexpr auto select(row r)`
+#### `template <typename ... Ts> constexpr auto select<Ts...>(row r)`
 
 Returns a row with the `Ts...` types from `r`. Note that each type `Ts` refers
 to the types referred to by `r`, not the types of the owning table, therefore
 `select()` can only be used to narrow a row to a subset of the elements referred
 to by `r`.
 
-#### `template <size_t ... Is, typename F> constexpr auto select(F f)`
+#### `template <size_t ... Is, typename F> constexpr auto select<Is...>(F f)`
 
 Returns a callable that takes a `row` `r`, and calls `f(get<Is>(r)...)`
 
 The function `f` must be callable with a `row` with `Is` indexes.
 
-#### `template <typename ... Ts, typename F> constexpr auto select(F f)`
+#### `template <typename ... Ts, typename F> constexpr auto select<Ts...>(F f)`
 
 Returns a callable that takes a `row` r, and calls `f(std::get<Ts>(r)...)`
 
 The function `f` must be callable with a `row` with `Ts` members.
 
-#### `template <size_t ... Is, row_range R> select(R& r)`
+#### `template <size_t ... Is> select<Is...>(row_range& r)`
 
 Returns a range spanning the same elements as `r`, but with a
 subselection of columns from the indexes `Is`.
 
-#### `template <row_range R, size_t ... Is> operator|(R, select())`
+#### `template <size_t ... Is> operator|(row_range& r, select<Is...>())`
 
 Returns a range spanning the same elements as `r`, but with a
 subselection of columns from the indexes `Is`.
 
-#### `template <typename ... Ts, row_range R> select(R& r`
+#### `template <typename ... Ts> select<Ts...>(row_range& r)`
 
 Returns a range spanning the same elements as `r`, but with a
 subselection of columns from the types `Ts`.
 
-#### `template <row_range R, typename ... Ts> operator|(R, select())`
+#### `template <typename ... Ts> operator|(row_range r, select<Ts...>())`
 
 Returns a range spanning the same elements as `r`, but with a
 subselection of columns from the types `Ts`.
