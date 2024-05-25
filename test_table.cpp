@@ -27,11 +27,22 @@ template <typename T, typename U = T>
 inline constexpr bool is_nothrow_comparable_v
     = is_nothrow_comparable<T, U>::value;
 
-static_assert(std::is_nothrow_assignable_v<typename table_ids::iterator&,
-                                           typename table_ids::const_iterator>);
+static_assert(std::is_nothrow_constructible_v<typename table_ids::iterator>);
 static_assert(
-    not std::is_nothrow_assignable_v<typename table_ids::const_iterator&,
-                                     typename table_ids::iterator>);
+    std::is_nothrow_copy_constructible_v<typename table_ids::iterator>);
+static_assert(
+    std::is_nothrow_constructible_v<typename table_ids::const_iterator>);
+static_assert(
+    std::is_nothrow_copy_constructible_v<typename table_ids::const_iterator>);
+static_assert(
+    std::is_nothrow_convertible_v<typename table_ids::iterator,
+                                  typename table_ids::const_iterator>);
+
+static_assert(
+    not std::is_nothrow_assignable_v<typename table_ids::iterator&,
+                                     typename table_ids::const_iterator>);
+static_assert(std::is_nothrow_assignable_v<typename table_ids::const_iterator&,
+                                           typename table_ids::iterator>);
 
 static_assert(is_nothrow_comparable_v<typename table_ids::iterator>);
 static_assert(is_nothrow_comparable_v<typename table_ids::iterator,

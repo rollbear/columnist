@@ -134,7 +134,7 @@ public:
 
     void erase(row_id);
 
-    void erase(iterator i);
+    void erase(const_iterator i);
 
     bool has_row_id(row_id k) const;
 
@@ -387,8 +387,12 @@ public:
     using pointer = void;
     using difference_type = ssize_t;
 
+    iterator_t() = default;
+
+    operator iterator_t<const T>() const noexcept { return { table_, idx_ }; }
+
     template <typename TT>
-        requires(std::is_same_v<const T, TT>)
+        requires(std::is_same_v<const TT, T>)
     iterator_t& operator=(const iterator_t<TT>& tt) noexcept
     {
         table_ = tt.table_;
@@ -518,7 +522,7 @@ void table<Ts...>::erase(row_id k)
 }
 
 template <typename... Ts>
-void table<Ts...>::erase(iterator i)
+void table<Ts...>::erase(const_iterator i)
 {
     assert(i.table_ == this);
     erase(rindex_[i.idx_]);
