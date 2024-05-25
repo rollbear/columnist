@@ -60,6 +60,19 @@ public:
         }
     }
 
+    template <typename T>
+        requires(Table::template has_type<T>)
+    friend decltype(auto) get(row r)
+    {
+        constexpr size_t column = Table::template type_index<T>;
+        auto& element = std::get<column>(r.table_->data_)[r.idx_];
+        if constexpr (std::is_const_v<Table>) {
+            return std::as_const(element);
+        } else {
+            return element;
+        }
+    }
+
     template <typename... Ts>
     bool operator==(const std::tuple<Ts...>& rh) const
     {
@@ -102,6 +115,8 @@ class table {
 public:
     template <size_t I>
     using element_type = std::tuple_element_t<I, std::tuple<Ts...>>;
+    template <typename T>
+    static constexpr bool has_type = columnist::type_is_one_of<T, Ts...>;
     template <typename T>
     static constexpr size_t type_index = columnist::type_index<T, Ts...>;
 
