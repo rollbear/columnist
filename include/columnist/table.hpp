@@ -161,9 +161,7 @@ public:
     using iterator = iterator_t<table>;
     using const_iterator = iterator_t<const table>;
 
-    struct sentinel {
-        size_t size;
-    };
+    struct sentinel {};
 
     size_t size() const { return rindex_.size(); }
 
@@ -440,7 +438,7 @@ public:
         return table_ == rh.table_ && idx_ == rh.idx_;
     };
 
-    bool operator==(sentinel end) const noexcept { return idx_ == end.size; }
+    bool operator==(sentinel) const noexcept { return idx_ == table_->size(); }
 
     template <typename Self>
     Self& operator++(this Self& self) noexcept
@@ -489,13 +487,13 @@ auto table<Ts...>::cbegin() const -> const_iterator
 template <typename... Ts>
 auto table<Ts...>::end() const -> sentinel
 {
-    return { rindex_.size() };
+    return {};
 }
 
 template <typename... Ts>
 auto table<Ts...>::cend() const -> sentinel
 {
-    return { rindex_.size() };
+    return {};
 }
 
 template <typename... Ts>
