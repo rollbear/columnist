@@ -42,12 +42,14 @@ jobs:
           then
             STDLIB="-stdlib=${{matrix.config.stdlib}}"
           fi
+          WARNINGS="-Wall -Wextra -Wconversion -Wpedantic -Werror"
+          SANITIZERS="-fsanitize=address,undefined"
           LIBRARY_PREFIX="/usr/local/lib/c++23${{matrix.config.stdlib}}"
           cmake \
             -S . \
             -B build \
             -D CMAKE_CXX_COMPILER=${{matrix.config.cxx}} \
-            -D CMAKE_CXX_FLAGS="${STDLIB} -Wall -Wextra -Wconversion -pedantic -Werror --coverage" \
+            -D CMAKE_CXX_FLAGS="${STDLIB} ${WARNINGS} ${SANITIZERS} --coverage" \
             -D CMAKE_PREFIX_PATH=${LIBRARY_PREFIX} \
             -D CMAKE_VERBOSE_MAKEFILE=yes \
             -D CMAKE_BUILD_TYPE=Debug
