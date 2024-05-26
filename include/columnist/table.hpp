@@ -11,8 +11,8 @@
  * Project home: https://github.com/rollbear/columnist
  */
 
-#ifndef STORE_TABLE_HPP
-#define STORE_TABLE_HPP
+#ifndef COLUMNIST_TABLE_HPP
+#define COLUMNIST_TABLE_HPP
 
 #include "type_utils.hpp"
 
@@ -582,4 +582,5 @@ struct std::tuple_element<I, columnist::row<S, std::index_sequence<Is...>>> {
 template <typename S, size_t... Is>
 struct std::tuple_size<columnist::row<S, std::index_sequence<Is...>>>
 : std::integral_constant<size_t, sizeof...(Is)> {};
-#endif // STORE_TABLE_HPP
+
+#endif // COLUMNIST_TABLE_HPP

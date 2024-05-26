@@ -11,8 +11,8 @@
  * Project home: https://github.com/rollbear/columnist
  */
 
-#ifndef STORE_FUNCTIONAL_HPP
-#define STORE_FUNCTIONAL_HPP
+#ifndef COLUMNIST_FUNCTIONAL_HPP
+#define COLUMNIST_FUNCTIONAL_HPP
 
 #include <functional>
 #include <tuple>
@@ -174,4 +174,5 @@ inline constexpr auto apply
     = []<typename F>(F&& f) { return apply_{ std::forward<F>(f) }; };
 
 } // namespace columnist
-#endif // STORE_FUNCTIONAL_HPP
+
+#endif // COLUMNIST_FUNCTIONAL_HPP

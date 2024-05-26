@@ -38,4 +38,5 @@ template <typename T, typename... Ts>
 inline constexpr bool type_is_one_of = (std::is_same_v<T, Ts> || ...);
 
 } // namespace columnist
+
 #endif // COLUMNIST_TYPE_UTILS_HPP
