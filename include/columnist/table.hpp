@@ -26,20 +26,6 @@
 
 namespace columnist {
 
-namespace internal {
-
-template <typename T>
-struct type_of {
-    using type = T;
-};
-
-template <typename T>
-using type_of_t = typename type_of<T>::type;
-
-static_assert(std::is_same_v<int, type_of_t<int>>);
-
-} // namespace internal
-
 template <typename Table, typename>
 class row;
 
@@ -169,7 +155,7 @@ public:
 
     template <typename... Us>
     auto insert(Us&&... us) -> row_id
-        requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...);
+        requires(std::is_constructible_v<Ts, Us> && ...);
 
     void erase(row_id);
 
@@ -212,7 +198,7 @@ public:
     }
 
 private:
-    std::tuple<std::vector<internal::type_of_t<Ts>>...> data_;
+    std::tuple<std::vector<Ts>...> data_;
     std::vector<row_id> rindex_;
     std::vector<row_id> index_;
     row_id first_free_ = { 0, 0 };
@@ -499,7 +485,7 @@ auto table<Ts...>::cend() const -> sentinel
 template <typename... Ts>
 template <typename... Us>
 auto table<Ts...>::insert(Us&&... us) -> row_id
-    requires(std::is_constructible_v<internal::type_of_t<Ts>, Us> && ...)
+    requires(std::is_constructible_v<Ts, Us> && ...)
 {
     auto data_idx = static_cast<uint32_t>(rindex_.size());
     auto push
