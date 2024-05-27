@@ -281,8 +281,6 @@ struct [[nodiscard]] range_index_selector {
             return select<Is...>(*i);
         }
 
-        using reference = void;
-        using pointer = void;
         using difference_type = ssize_t;
         using iterator_category = std::forward_iterator_tag;
         using value_type = decltype(select<Is...>(
@@ -347,8 +345,6 @@ struct [[nodiscard]] range_type_selector {
             return select<Ts...>(*i);
         }
 
-        using reference = void;
-        using pointer = void;
         using difference_type = ssize_t;
         using iterator_category = std::forward_iterator_tag;
         using value_type = decltype(select<Ts...>(
@@ -406,8 +402,6 @@ class table<Ts...>::iterator_t {
 public:
     using iterator_category = std::forward_iterator_tag;
     using value_type = columnist::row<T, typename T::indexes>;
-    using reference = value_type;
-    using pointer = void;
     using difference_type = ssize_t;
 
     iterator_t() = default;
