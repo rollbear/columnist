@@ -14,17 +14,14 @@
 #ifndef COLUMNIST_FUNCTIONAL_HPP
 #define COLUMNIST_FUNCTIONAL_HPP
 
+#include "type_utils.hpp"
+
 #include <functional>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
 namespace columnist {
-
-namespace internal {
-template <typename T, typename U>
-using forwarded_like = decltype(std::forward_like<T>(std::declval<U>()));
-}
 
 template <typename F, size_t... Is>
 struct swizzle_ {
@@ -34,7 +31,7 @@ struct swizzle_ {
         std::is_nothrow_invocable_v<
             F&,
             std::tuple_element_t<Is, std::tuple<Ts...>>...>)
-        -> std::invoke_result_t<internal::forwarded_like<Self, F&>,
+        -> std::invoke_result_t<forwarded_like_t<Self, F&>,
                                 std::tuple_element_t<Is, std::tuple<Ts...>>...>
     {
         return call(std::forward<Self>(self).f, std::forward<Ts>(ts)...);
@@ -119,7 +116,7 @@ using tuple_element_t = decltype(internal::get<I>(std::declval<T>()));
 
 template <typename T, typename... Ts>
 auto get_tuple(const std::tuple<Ts...>&)
-    -> internal::forwarded_like<T, std::tuple<Ts...>>;
+    -> forwarded_like_t<T, std::tuple<Ts...>>;
 
 template <typename T>
 using as_tuple = decltype(get_tuple<T>(std::declval<T>()));
@@ -153,10 +150,9 @@ concept appliccable = std::invoke(
 
 template <typename F>
 struct [[nodiscard]] apply_ {
-    template <typename Self, appliccable<internal::forwarded_like<Self, F>> T>
+    template <typename Self, appliccable<forwarded_like_t<Self, F>> T>
     constexpr decltype(auto) operator()(this Self&& self, T&& t) noexcept(
-        internal::is_nothrow_appliccable_v<internal::forwarded_like<Self, F>,
-                                           T>)
+        internal::is_nothrow_appliccable_v<forwarded_like_t<Self, F>, T>)
     {
         constexpr auto arity = internal::tuple_size_v<T>;
         auto call

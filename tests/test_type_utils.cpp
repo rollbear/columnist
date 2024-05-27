@@ -30,4 +30,10 @@ static_assert(columnist::type_is_one_of<int, char, bool, int>);
 static_assert(!columnist::type_is_one_of<int>);
 static_assert(!columnist::type_is_one_of<int, void, char, double>);
 
+static_assert(std::is_same_v<int&, columnist::forwarded_like_t<float&, int&>>);
+static_assert(std::is_same_v<const int&,
+                             columnist::forwarded_like_t<const float&, int&>>);
+static_assert(
+    std::is_same_v<int&&, columnist::forwarded_like_t<float&&, int&>>);
+
 int main() { std::puts("It compiled, so it passed"); }

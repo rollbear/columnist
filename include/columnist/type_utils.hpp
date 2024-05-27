@@ -16,8 +16,12 @@
 
 #include <cstddef>
 #include <type_traits>
+#include <utility>
 
 namespace columnist {
+
+template <typename T, typename U>
+using forwarded_like_t = decltype(std::forward_like<T>(std::declval<U>()));
 
 template <template <typename...> class, typename>
 inline constexpr bool is_specialization_v = false;
