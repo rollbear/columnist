@@ -85,7 +85,8 @@ public:
 
     template <typename T2>
         requires(std::is_same_v<const T2&, const Table&>)
-    bool operator==(const row<T2, std::index_sequence<Is...>>& rh) const noexcept
+    bool
+    operator==(const row<T2, std::index_sequence<Is...>>& rh) const noexcept
     {
         return table_ == rh.table_ && idx_ == rh.idx_;
     }
@@ -134,7 +135,7 @@ public:
             return copy;
         }
 
-        constexpr row_id(uint32_t i, uint8_t g = 0)
+        explicit constexpr row_id(uint32_t i, uint8_t g = 0)
         : index(i & ((1U << 24) - 1)), generation(g)
         {}
 
@@ -152,9 +153,9 @@ public:
 
     struct sentinel {};
 
-    size_t size() const { return rindex_.size(); }
+    [[nodiscard]] size_t size() const { return rindex_.size(); }
 
-    bool empty() const { return size() == 0; }
+    [[nodiscard]] bool empty() const { return size() == 0; }
 
     template <typename... Us>
     auto insert(Us&&... us) -> row_id
@@ -164,25 +165,25 @@ public:
 
     void erase(const_iterator i);
 
-    bool has_row_id(row_id k) const;
+    [[nodiscard]] bool has_row_id(row_id k) const;
 
-    row operator[](row_id k)
+    [[nodiscard]] row operator[](row_id k)
     {
         assert(has_row_id(k));
         return { this, index_[k.index].index };
     }
 
-    const_row operator[](row_id k) const
+    [[nodiscard]] const_row operator[](row_id k) const
     {
         assert(has_row_id(k));
         return { this, index_[k.index].index };
     }
 
-    iterator begin();
-    const_iterator begin() const;
-    const_iterator cbegin() const;
-    sentinel end() const;
-    sentinel cend() const;
+    [[nodiscard]] iterator begin();
+    [[nodiscard]] const_iterator begin() const;
+    [[nodiscard]] const_iterator cbegin() const;
+    [[nodiscard]] sentinel end() const;
+    [[nodiscard]] sentinel cend() const;
 
     template <typename Predicate>
     friend size_t erase_if(table& t, Predicate predicate)
@@ -204,11 +205,11 @@ private:
     std::tuple<std::vector<Ts>...> data_;
     std::vector<row_id> rindex_;
     std::vector<row_id> index_;
-    row_id first_free_ = { 0, 0 };
+    row_id first_free_ = row_id{ 0, 0 };
 };
 
 template <typename F, size_t... Is>
-struct function_selector {
+struct [[nodiscard]] function_selector {
     template <typename Table, typename Idxs>
     decltype(auto) operator()(row<Table, Idxs> r)
     {
@@ -229,7 +230,8 @@ constexpr auto select(F f)
 
 template <size_t... Ins, typename Table, size_t... Is>
     requires((Ins < sizeof...(Is)) && ...)
-constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
+[[nodiscard]] constexpr auto
+select(const row<Table, std::index_sequence<Is...>>& r)
 {
     constexpr auto indexes = std::array{ Is... };
     return row<Table, std::index_sequence<indexes[Ins]...>>{ r };
@@ -238,7 +240,8 @@ constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 template <typename... Ts, typename Table, size_t... Is>
     requires((type_is_one_of<Ts, typename Table::template element_type<Is>...>
               && ...))
-constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
+[[nodiscard]] constexpr auto
+select(const row<Table, std::index_sequence<Is...>>& r)
 {
     return select<
         type_index<Ts, typename Table::template element_type<Is>...>...>(r);
@@ -286,21 +289,21 @@ struct [[nodiscard]] range_index_selector {
             std::declval<typename range_iterator::value_type>()));
     };
 
-    iterator begin() const
+    [[nodiscard]] iterator begin() const
     {
         using std::ranges::begin;
         return iterator{ begin(captured_range) };
     }
 
-    iterator cbegin() const { return begin(); }
+    [[nodiscard]] iterator cbegin() const { return begin(); }
 
-    auto end() const
+    [[nodiscard]] auto end() const
     {
         using std::ranges::end;
         return end(captured_range);
     }
 
-    auto cend() const { return end(); }
+    [[nodiscard]] auto cend() const { return end(); }
 
     R& captured_range;
 };
@@ -351,21 +354,21 @@ struct [[nodiscard]] range_type_selector {
             std::declval<typename range_iterator::value_type>()));
     };
 
-    iterator begin() const
+    [[nodiscard]] iterator begin() const
     {
         using std::ranges::begin;
         return iterator{ begin(captured_range) };
     }
 
-    iterator cbegin() const { return begin(); }
+    [[nodiscard]] iterator cbegin() const { return begin(); }
 
-    auto end() const
+    [[nodiscard]] auto end() const
     {
         using std::ranges::end;
         return end(captured_range);
     }
 
-    auto cend() const { return end(); }
+    [[nodiscard]] auto cend() const { return end(); }
 
     R& captured_range;
 };
@@ -441,7 +444,10 @@ public:
         return copy;
     }
 
-    value_type operator*() const noexcept { return value_type(table_, idx_); }
+    [[nodiscard]] value_type operator*() const noexcept
+    {
+        return value_type(table_, idx_);
+    }
 
 private:
     iterator_t(T* table, size_t idx)
@@ -498,12 +504,12 @@ auto table<Ts...>::insert(Us&&... us) -> row_id
         push, indexes{}, std::forward_as_tuple(std::forward<Us>(us)...));
     if (first_free_.index == index_.size()) {
         rindex_.push_back(first_free_);
-        index_.push_back({ data_idx, 0 });
+        index_.push_back(row_id{ data_idx, 0 });
         first_free_ = row_id(static_cast<uint32_t>(index_.size()));
         return index_.back();
     } else {
         auto index_pos = std::exchange(first_free_, index_[first_free_.index]);
-        index_[index_pos.index] = { data_idx, index_pos.generation };
+        index_[index_pos.index] = row_id{ data_idx, index_pos.generation };
         rindex_.push_back(index_pos);
         return index_pos;
     }
