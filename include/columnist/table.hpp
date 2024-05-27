@@ -81,16 +81,16 @@ public:
         return std::apply(elementwise_equality, rh);
     }
 
-    template <typename S>
-        requires(std::is_same_v<const S&, const Table&>)
-    bool operator==(const row<S, std::index_sequence<Is...>>& rh) const noexcept
+    template <typename T2>
+        requires(std::is_same_v<const T2&, const Table&>)
+    bool operator==(const row<T2, std::index_sequence<Is...>>& rh) const noexcept
     {
         return table_ == rh.table_ && idx_ == rh.idx_;
     }
 
 private:
-    row(Table* store, size_t idx)
-    : table_(store), idx_(idx)
+    row(Table* table, size_t idx)
+    : table_(table), idx_(idx)
     {}
 
     Table* table_ = nullptr;
@@ -182,14 +182,14 @@ public:
     sentinel cend() const;
 
     template <typename Predicate>
-    friend size_t erase_if(table& s, Predicate predicate)
+    friend size_t erase_if(table& t, Predicate predicate)
     {
         size_t rv = 0;
-        auto i = s.begin();
-        while (i != s.end()) {
+        auto i = t.begin();
+        while (i != t.end()) {
             if (predicate(*i)) {
                 ++rv;
-                s.erase(i);
+                t.erase(i);
             } else {
                 ++i;
             }
@@ -444,8 +444,8 @@ public:
     value_type operator*() const noexcept { return value_type(table_, idx_); }
 
 private:
-    iterator_t(T* s, size_t idx)
-    : table_(s), idx_(idx)
+    iterator_t(T* table, size_t idx)
+    : table_(table), idx_(idx)
     {}
 
     T* table_ = nullptr;
@@ -554,17 +554,19 @@ bool table<Ts...>::has_row_id(row_id k) const
 
 } // namespace columnist
 
-template <std::size_t I, typename S, size_t... Is>
-struct std::tuple_element<I, columnist::row<S, std::index_sequence<Is...>>> {
-    using basic_type = typename S::template element_type<std::tuple_element_t<
-        I,
-        std::tuple<std::integral_constant<size_t, Is>...>>::value>;
+template <std::size_t I, typename Table, size_t... Is>
+struct std::tuple_element<I,
+                          columnist::row<Table, std::index_sequence<Is...>>> {
+    using basic_type =
+        typename Table::template element_type<std::tuple_element_t<
+            I,
+            std::tuple<std::integral_constant<size_t, Is>...>>::value>;
     using type = std::
-        conditional_t<std::is_const_v<S>, const basic_type&, basic_type&>;
+        conditional_t<std::is_const_v<Table>, const basic_type&, basic_type&>;
 };
 
-template <typename S, size_t... Is>
-struct std::tuple_size<columnist::row<S, std::index_sequence<Is...>>>
+template <typename Table, size_t... Is>
+struct std::tuple_size<columnist::row<Table, std::index_sequence<Is...>>>
 : std::integral_constant<size_t, sizeof...(Is)> {};
 
 #endif // COLUMNIST_TABLE_HPP
