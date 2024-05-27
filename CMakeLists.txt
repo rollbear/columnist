@@ -12,15 +12,10 @@
 #
 
 
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.22)
 project(columnist)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED yes)
-set(CMAKE_CXX_EXTENSIONS  no)
-
-find_package(Catch2 3 REQUIRED)
-
+option(unittest, "Enable unittest" no)
 
 add_library(columnist INTERFACE)
 add_library(columnist::columnist ALIAS columnist)
@@ -34,5 +29,6 @@ install(TARGETS columnist
         EXPORT columnist-targets
         INCLUDES DESTINATION include)
 
-add_subdirectory(tests)
-
+if (unittest)
+    add_subdirectory(tests)
+endif()

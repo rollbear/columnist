@@ -11,6 +11,12 @@
 # Project home: https://github.com/rollbear/columnist
 #
 
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED yes)
+set(CMAKE_CXX_EXTENSIONS  no)
+
+find_package(Catch2 3 REQUIRED)
+
 add_executable(test_table test_table.cpp)
 target_link_libraries(test_table
         columnist::columnist

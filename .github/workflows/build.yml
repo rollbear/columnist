@@ -48,6 +48,7 @@ jobs:
           cmake \
             -S . \
             -B build \
+            -D unittest=yes \
             -D CMAKE_CXX_COMPILER=${{matrix.config.cxx}} \
             -D CMAKE_CXX_FLAGS="${STDLIB} ${WARNINGS} ${SANITIZERS} --coverage" \
             -D CMAKE_PREFIX_PATH=${LIBRARY_PREFIX} \
