@@ -36,6 +36,18 @@ class [[nodiscard]] row<Table, std::index_sequence<Is...>> {
     friend class row;
 
 public:
+    static constexpr size_t table_column_index(size_t i)
+    {
+        constexpr std::array indices{ Is... };
+        return indices[i];
+    }
+
+    using column_types
+        = std::tuple<typename Table::template element_type<Is>...>;
+    template <size_t I>
+    using column_type
+        = forwarded_like_t<Table, std::tuple_element_t<I, column_types>>;
+
     row() = default;
 
     template <size_t... PIs>
@@ -47,29 +59,19 @@ public:
 
     template <size_t I>
         requires(I < sizeof...(Is))
-    friend decltype(auto) get(row r)
+    friend column_type<I>& get(row r)
     {
-        using indices = std::tuple<std::integral_constant<size_t, Is>...>;
-        constexpr auto column = std::tuple_element_t<I, indices>::value;
-        auto& element = std::get<column>(r.table_->data_)[r.idx_];
-        if constexpr (std::is_const_v<Table>) {
-            return std::as_const(element);
-        } else {
-            return element;
-        }
+        constexpr auto column = table_column_index(I);
+        return std::get<column>(r.table_->data_)[r.idx_];
     }
 
     template <typename T>
         requires(Table::template has_type<T>)
-    friend decltype(auto) get(row r)
+    friend auto& get(row r)
     {
         constexpr size_t column = Table::template type_index<T>;
         auto& element = std::get<column>(r.table_->data_)[r.idx_];
-        if constexpr (std::is_const_v<Table>) {
-            return std::as_const(element);
-        } else {
-            return element;
-        }
+        return std::forward_like<Table&>(element);
     }
 
     template <typename... Ts>
@@ -111,6 +113,8 @@ class table {
     template <typename S, typename Is>
     friend class row;
 
+    using indexes = std::index_sequence_for<Ts...>;
+
 public:
     template <size_t I>
     using element_type = std::tuple_element_t<I, std::tuple<Ts...>>;
@@ -119,9 +123,8 @@ public:
     template <typename T>
     static constexpr size_t type_index = columnist::type_index<T, Ts...>;
 
-    using row = columnist::row<table, std::index_sequence_for<Ts...>>;
-    using const_row
-        = columnist::row<const table, std::index_sequence_for<Ts...>>;
+    using row = columnist::row<table, indexes>;
+    using const_row = columnist::row<const table, indexes>;
 
     struct row_id {
         row_id next_generation() const
@@ -206,16 +209,12 @@ private:
 
 template <typename F, size_t... Is>
 struct function_selector {
-    template <typename S, typename Idxs>
-    decltype(auto) operator()(row<S, Idxs> r)
+    template <typename Table, typename Idxs>
+    decltype(auto) operator()(row<Table, Idxs> r)
     {
-        auto f = [this, &r]<size_t... I>(std::index_sequence<I...>) {
-            using new_idxs = std::index_sequence<std::tuple_element_t<
-                Is,
-                std::tuple<std::integral_constant<size_t, I>...>>::value...>;
-            return captured_function(row<S, new_idxs>(r));
-        };
-        return f(Idxs{});
+        using R = row<Table, Idxs>;
+        using new_idxs = std::index_sequence<R::table_column_index(Is)...>;
+        return captured_function(row<Table, new_idxs>(r));
     }
 
     F captured_function;
@@ -247,8 +246,9 @@ constexpr auto select(const row<Table, std::index_sequence<Is...>>& r)
 
 template <typename F, typename... Ts>
 struct [[nodiscard]] function_type_selector {
-    template <typename S, typename Idxs>
-    decltype(auto) operator()(row<S, Idxs> r)
+    template <typename row>
+        requires(is_row_v<row>)
+    decltype(auto) operator()(row r)
     {
         return captured_function(select<Ts...>(r));
     }
@@ -400,7 +400,7 @@ class table<Ts...>::iterator_t {
 
 public:
     using iterator_category = std::forward_iterator_tag;
-    using value_type = columnist::row<T, std::index_sequence_for<Ts...>>;
+    using value_type = columnist::row<T, typename T::indexes>;
     using reference = value_type;
     using pointer = void;
     using difference_type = ssize_t;
@@ -494,9 +494,8 @@ auto table<Ts...>::insert(Us&&... us) -> row_id
                    std::get<Is>(std::forward<T>(t))),
                ...);
           };
-    std::invoke(push,
-                std::index_sequence_for<Ts...>{},
-                std::forward_as_tuple(std::forward<Us>(us)...));
+    std::invoke(
+        push, indexes{}, std::forward_as_tuple(std::forward<Us>(us)...));
     if (first_free_.index == index_.size()) {
         rindex_.push_back(first_free_);
         index_.push_back({ data_idx, 0 });
@@ -526,7 +525,7 @@ void table<Ts...>::erase(row_id k)
         (assign_from_last_and_pop_back(std::integral_constant<size_t, Is>{}),
          ...);
     };
-    std::invoke(move_last, std::make_index_sequence<sizeof...(Ts)>{});
+    std::invoke(move_last, indexes{});
     if (data_idx != rindex_.size() - 1) {
         rindex_[data_idx] = rindex_.back();
         index_[rindex_[data_idx].index].index = data_idx & ((1U << 24) - 1);
@@ -554,15 +553,10 @@ bool table<Ts...>::has_row_id(row_id k) const
 
 } // namespace columnist
 
-template <std::size_t I, typename Table, size_t... Is>
-struct std::tuple_element<I,
-                          columnist::row<Table, std::index_sequence<Is...>>> {
-    using basic_type =
-        typename Table::template element_type<std::tuple_element_t<
-            I,
-            std::tuple<std::integral_constant<size_t, Is>...>>::value>;
-    using type = std::
-        conditional_t<std::is_const_v<Table>, const basic_type&, basic_type&>;
+template <std::size_t I, typename Table, typename Indexes>
+struct std::tuple_element<I, columnist::row<Table, Indexes>> {
+    using type =
+        typename columnist::row<Table, Indexes>::template column_type<I>&;
 };
 
 template <typename Table, size_t... Is>
