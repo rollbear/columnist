@@ -227,6 +227,14 @@ public:
 
 A range type whose iterators return a table `row` type.
 
+### `row_range_with_indexes<Is...>`
+
+A `row_range` for which `select<Is...>` will work
+
+### `row_range_with_types<Ts...>`
+
+A `row_range` for which `select<Ts...> will work`
+
 ### Free functions
 
 #### `template <size_t ... Is> constexpr auto select<Is...>(row r)`

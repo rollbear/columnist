@@ -308,9 +308,11 @@ struct [[nodiscard]] range_index_selector {
     R& captured_range;
 };
 
-template <size_t... Is, row_range R>
+template <typename R, size_t... Is>
+concept row_range_with_indexes = requires(R& r) { select<Is...>(*r.begin()); };
+
+template <size_t... Is, row_range_with_indexes<Is...> R>
 range_index_selector<R, Is...> select(R& r)
-    requires requires { select<Is...>(*r.begin()); }
 {
     return { r };
 }
@@ -318,9 +320,8 @@ range_index_selector<R, Is...> select(R& r)
 template <size_t... Is>
 struct [[nodiscard]] range_selector_maker {};
 
-template <row_range R, size_t... Is>
+template <size_t... Is, row_range_with_indexes<Is...> R>
 range_index_selector<R, Is...> operator|(R& r, range_selector_maker<Is...>)
-    requires requires { (select<Is...>(*r.begin())); }
 {
     return { r };
 };
@@ -373,9 +374,11 @@ struct [[nodiscard]] range_type_selector {
     R& captured_range;
 };
 
-template <typename... Ts, row_range R>
+template <typename R, typename... Ts>
+concept row_range_with_types = requires(R& r) { select<Ts...>(*r.begin()); };
+
+template <typename... Ts, row_range_with_types<Ts...> R>
 range_type_selector<R, Ts...> select(R& r)
-    requires requires { select<Ts...>(*r.begin()); }
 {
     return { r };
 }
@@ -383,9 +386,8 @@ range_type_selector<R, Ts...> select(R& r)
 template <typename... Ts>
 struct [[nodiscard]] range_type_selector_maker {};
 
-template <row_range R, typename... Ts>
+template <typename... Ts, row_range_with_types<Ts...> R>
 range_type_selector<R, Ts...> operator|(R& r, range_type_selector_maker<Ts...>)
-    requires requires { select<Ts...>(*r.begin()); }
 {
     return { r };
 }
