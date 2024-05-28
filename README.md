@@ -29,14 +29,14 @@ Status: **Highly Experimental**
 #include <print>
 
 int main() {
-    // Create a table with 3 columns
+    // Create a table with 3 column_types
     columnist::table<int, float, std::string> values;
 
     // insertion returns row IDs, which can be used for direct access and removal
     auto pi_id = values.insert(1, 3.1416, "pi");
     auto e_id = values.insert(2, 2.7813, "e");
 
-    // select a subset of columns by type or by index
+    // select a subset of column_types by type or by index
     auto pi_num = columnist::select<float>(values[pi_id]); // float 3.1416
     auto e_str = columnist::select<2>(values[e_id]);       // std::string("e")
 
@@ -123,8 +123,8 @@ using objects = columnist::table<pos_x, pos_y, velocity_x, velocity_y>;
 
 static inline auto less_equal = [](auto x) { return [x](auto y) { return y <= x;}; };
 
-template <typename ... Ts>
-inline auto abs(strong::type<Ts...> v) { value_of(v) = abs(value_of(v)); return v; }
+template <typename ... column_types>
+inline auto abs(strong::type<column_types...> v) { value_of(v) = abs(value_of(v)); return v; }
 
 void remove_stopped_objetcts(objects& objs)
 {
@@ -162,7 +162,7 @@ void update_pos(objects& objs, acceleration_y a, std::chrono::seconds t)
 
 ```C++
 namespace columnist {
-template <typename ... Ts>
+template <typename ... column_types>
 class table {
 public:
     struct row_id {
@@ -178,7 +178,7 @@ public:
     size_t size() const;
     bool empty() const;
     template <typename ... Us>
-        requires(std::is_constructible_v<Ts, Us> && ...)
+        requires(std::is_constructible_v<column_types, Us> && ...)
     row_id insert(Us&& ... us);
     
     void erase(row_id);
@@ -199,7 +199,7 @@ public:
     friend size_t erase_if(table&, Predicate);
 };
 
-template <typename Table, std::index_sequence<Is...>>
+template <typename Table, std::index_sequence<selected_column_numbers...>>
 class row {
 public:
     row();
@@ -213,11 +213,11 @@ public:
     template <typename T>
     friend decltype(auto) get(row r);
     
-    template <typename ... Ts>
-    bool operator==(const tuple<Ts...>&) const;
+    template <typename ... column_types>
+    bool operator==(const tuple<column_types...>&) const;
     template <typename Table2>
         requires(is_same_v<const Table, const Table2>)
-    bool operator==(const row<Table2, std::index_sequence<Is...>>& rh) const noexcept;
+    bool operator==(const row<Table2, std::index_sequence<selected_column_numbers...>>& rh) const noexcept;
 };
 ```
 
@@ -227,61 +227,61 @@ public:
 
 A range type whose iterators return a table `row` type.
 
-### `row_range_with_indexes<Is...>`
+### `row_range_with_column_numbers<selected_column_numbers...>`
 
-A `row_range` for which `select<Is...>` will work
+A `row_range` for which `select<selected_column_numbers...>` will work
 
-### `row_range_with_types<Ts...>`
+### `row_range_with_column_types<column_types...>`
 
-A `row_range` for which `select<Ts...> will work`
+A `row_range` for which `select<column_types...> will work`
 
 ### Free functions
 
-#### `template <size_t ... Is> constexpr auto select<Is...>(row r)`
+#### `template <size_t ... selected_column_numbers> constexpr auto select<selected_column_numbers...>(row r)`
 
-Returns a row with the `Is...` elements of `r`. Note that each value `Is` refers
-to the number of columns referred to by `r`, not the columns of the owning
+Returns a row with the `selected_column_numbers...` elements of `r`. Note that each value `selected_column_numbers` refers
+to the number of column_types referred to by `r`, not the column_types of the owning
 table, therefore `select()` can only be used to narrow a row to a subset of the
 elements referred to by `r`.
 
-#### `template <typename ... Ts> constexpr auto select<Ts...>(row r)`
+#### `template <typename ... column_types> constexpr auto select<column_types...>(row r)`
 
-Returns a row with the `Ts...` types from `r`. Note that each type `Ts` refers
+Returns a row with the `column_types...` types from `r`. Note that each type `column_types` refers
 to the types referred to by `r`, not the types of the owning table, therefore
 `select()` can only be used to narrow a row to a subset of the elements referred
 to by `r`.
 
-#### `template <size_t ... Is, typename F> constexpr auto select<Is...>(F f)`
+#### `template <size_t ... selected_column_numbers, typename F> constexpr auto select<selected_column_numbers...>(F f)`
 
-Returns a callable that takes a `row` `r`, and calls `f(get<Is>(r)...)`
+Returns a callable that takes a `row` `r`, and calls `f(get<selected_column_numbers>(r)...)`
 
-The function `f` must be callable with a `row` with `Is` indexes.
+The function `f` must be callable with a `row` with `selected_column_numbers` column_numbers.
 
-#### `template <typename ... Ts, typename F> constexpr auto select<Ts...>(F f)`
+#### `template <typename ... column_types, typename F> constexpr auto select<column_types...>(F f)`
 
-Returns a callable that takes a `row` r, and calls `f(std::get<Ts>(r)...)`
+Returns a callable that takes a `row` r, and calls `f(std::get<column_types>(r)...)`
 
-The function `f` must be callable with a `row` with `Ts` members.
+The function `f` must be callable with a `row` with `column_types` members.
 
-#### `template <size_t ... Is> select<Is...>(row_range& r)`
-
-Returns a range spanning the same elements as `r`, but with a
-subselection of columns from the indexes `Is`.
-
-#### `template <size_t ... Is> operator|(row_range& r, select<Is...>())`
+#### `template <size_t ... selected_column_numbers> select<selected_column_numbers...>(row_range& r)`
 
 Returns a range spanning the same elements as `r`, but with a
-subselection of columns from the indexes `Is`.
+subselection of column_types from the column_numbers `selected_column_numbers`.
 
-#### `template <typename ... Ts> select<Ts...>(row_range& r)`
-
-Returns a range spanning the same elements as `r`, but with a
-subselection of columns from the types `Ts`.
-
-#### `template <typename ... Ts> operator|(row_range r, select<Ts...>())`
+#### `template <size_t ... selected_column_numbers> operator|(row_range& r, select<selected_column_numbers...>())`
 
 Returns a range spanning the same elements as `r`, but with a
-subselection of columns from the types `Ts`.
+subselection of column_types from the column_numbers `selected_column_numbers`.
+
+#### `template <typename ... column_types> select<column_types...>(row_range& r)`
+
+Returns a range spanning the same elements as `r`, but with a
+subselection of column_types from the types `column_types`.
+
+#### `template <typename ... column_types> operator|(row_range r, select<column_types...>())`
+
+Returns a range spanning the same elements as `r`, but with a
+subselection of column_types from the types `column_types`.
 
 ## `<columnist/functional.hpp`
 
@@ -291,8 +291,8 @@ subselection of columns from the types `Ts`.
 
 Higher order function generalizing `std::apply()`.
 
-If `f` is a function accepting `Ts...` as arguments, then `apply(f)` is
-callable with a type `T` for which `get<Is>()` returns a type matching `Ts` for
-all indexes. In particular, it is callable with `columnist::row<>`,
-`std::tuple<Ts...>` or something that inherits from `std::tuple<Ts...>`.
+If `f` is a function accepting `column_types...` as arguments, then `apply(f)` is
+callable with a type `T` for which `get<selected_column_numbers>()` returns a type matching `column_types` for
+all column_numbers. In particular, it is callable with `columnist::row<>`,
+`std::tuple<column_types...>` or something that inherits from `std::tuple<column_types...>`.
 

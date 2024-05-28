@@ -77,7 +77,7 @@ TEST_CASE("insert returns the object and the row_id")
     table<int> s;
     auto h = s.insert(3);
     REQUIRE(get<0>(s[h]) == 3);
-    REQUIRE(h.index == 0);
+    REQUIRE(h.offset == 0);
 }
 
 TEST_CASE("erase invalidates the row_id")
@@ -148,7 +148,7 @@ TEST_CASE("iteration")
                     REQUIRE(i != values.end());
                     values.erase(i);
                     REQUIRE(get<0>(s[h]) == v);
-                    std::cerr << h.index << ' ' << v << '\n';
+                    std::cerr << h.offset << ' ' << v << '\n';
                 }
                 REQUIRE(values.empty());
             }
@@ -164,7 +164,7 @@ TEST_CASE("iteration")
                     REQUIRE(i != values.end());
                     values.erase(i);
                     REQUIRE(get<0>(s[h]) == v);
-                    std::cerr << h.index << ' ' << v << '\n';
+                    std::cerr << h.offset << ' ' << v << '\n';
                 }
                 REQUIRE(values.empty());
             }
@@ -172,14 +172,14 @@ TEST_CASE("iteration")
     }
 }
 
-TEST_CASE("indexes aren't reused, their generation shifts")
+TEST_CASE("column_numbers aren't reused, their generation shifts")
 {
     table<int> s;
     auto hp = s.insert(1);
     s.erase(hp);
     auto hq = s.insert(2);
     REQUIRE(hp != hq);
-    REQUIRE(hp.index == hq.index);
+    REQUIRE(hp.offset == hq.offset);
     REQUIRE(s.has_row_id(hq));
     REQUIRE(!s.has_row_id(hp));
 }
@@ -323,7 +323,7 @@ TEST_CASE("select range")
         s.insert('A', 'B', 'C', 'D', 'E');
         using tup = std::tuple<C<0>, C<2>, C<4>>;
         std::array result{ tup{ 'a', 'c', 'e' }, tup{ 'A', 'C', 'E' } };
-        WHEN("selecting over indexes on a non-const range as a pipe")
+        WHEN("selecting over column_numbers on a non-const range as a pipe")
         {
             THEN("the value are iterated over and can be modified")
             {
@@ -339,8 +339,8 @@ TEST_CASE("select range")
                 REQUIRE(idx == 2);
             }
         }
-        AND_WHEN(
-            "selecting over indexes on a non-const range with function call")
+        AND_WHEN("selecting over column_numbers on a non-const range with "
+                 "function call")
         {
             THEN("the value are iterated over and can be modified")
             {
@@ -356,7 +356,7 @@ TEST_CASE("select range")
                 REQUIRE(idx == 2);
             }
         }
-        AND_WHEN("selecting over indexes on a const range as a pipe")
+        AND_WHEN("selecting over column_numbers on a const range as a pipe")
         {
             THEN("the value are iterated over and can be modified")
             {
@@ -372,7 +372,8 @@ TEST_CASE("select range")
                 REQUIRE(idx == 2);
             }
         }
-        AND_WHEN("selecting over indexes on a const range with function call")
+        AND_WHEN(
+            "selecting over column_numbers on a const range with function call")
         {
             THEN("the value are iterated over and can be modified")
             {
