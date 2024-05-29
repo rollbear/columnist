@@ -481,3 +481,69 @@ TEST_CASE("capacity")
         }
     }
 }
+
+struct throws_on_negative {
+    throws_on_negative(int v)
+    : value(v)
+    {
+        if (v < 0) { throw "negative"; }
+    }
+
+    bool operator==(int v) const noexcept { return v == value; }
+
+    int value;
+    inline static size_t construction_count_until_throw = 0;
+};
+
+TEST_CASE("throwing on insert")
+{
+    GIVEN("a table with types that can throw on construction")
+    {
+        table<throws_on_negative, throws_on_negative, throws_on_negative> t;
+        auto r1 = t.insert(1, 2, 3);
+        auto r2 = t.insert(11, 12, 13);
+        auto r3 = t.insert(21, 22, 23);
+        WHEN("inserting a value that throws to the first column")
+        {
+            REQUIRE_THROWS(t.insert(-1, 32, 33));
+            THEN("the original elements remain")
+            {
+                REQUIRE(t.size() == 3);
+                REQUIRE(t.has_row_id(r1));
+                REQUIRE(t[r1] == std::tuple(1, 2, 3));
+                REQUIRE(t.has_row_id(r2));
+                REQUIRE(t[r2] == std::tuple(11, 12, 13));
+                REQUIRE(t.has_row_id(r3));
+                REQUIRE(t[r3] == std::tuple(21, 22, 23));
+            }
+        }
+        AND_WHEN("inresting a value that throws in the middle column")
+        {
+            REQUIRE_THROWS(t.insert(31, -1, 33));
+            THEN("the original elements remain")
+            {
+                REQUIRE(t.size() == 3);
+                REQUIRE(t.has_row_id(r1));
+                REQUIRE(t[r1] == std::tuple(1, 2, 3));
+                REQUIRE(t.has_row_id(r2));
+                REQUIRE(t[r2] == std::tuple(11, 12, 13));
+                REQUIRE(t.has_row_id(r3));
+                REQUIRE(t[r3] == std::tuple(21, 22, 23));
+            }
+        }
+        AND_WHEN("inresting a value that throws in the last column")
+        {
+            REQUIRE_THROWS(t.insert(31, 32, -1));
+            THEN("the original elements remain")
+            {
+                REQUIRE(t.size() == 3);
+                REQUIRE(t.has_row_id(r1));
+                REQUIRE(t[r1] == std::tuple(1, 2, 3));
+                REQUIRE(t.has_row_id(r2));
+                REQUIRE(t[r2] == std::tuple(11, 12, 13));
+                REQUIRE(t.has_row_id(r3));
+                REQUIRE(t[r3] == std::tuple(21, 22, 23));
+            }
+        }
+    }
+}

@@ -119,7 +119,11 @@ constexpr bool is_row_v<row<Table, std::index_sequence<column_numbers...>>>
 template <typename R>
 concept row_range = is_row_v<decltype(*std::declval<R&>().begin())>;
 
-template <typename... column_types>
+template <typename T>
+concept nothrow_movable = std::is_nothrow_move_constructible_v<T>
+                       && std::is_nothrow_move_assignable_v<T>;
+
+template <nothrow_movable... column_types>
 class table {
     template <typename, typename>
     friend class row;
@@ -171,8 +175,7 @@ public:
     [[nodiscard]] bool empty() const { return size() == 0; }
 
     template <typename... Us>
-    auto insert(Us&&... us) -> row_id
-        requires(std::is_constructible_v<column_types, Us> && ...);
+    auto insert(Us&&... us) -> row_id;
 
     void erase(row_id);
 
@@ -422,7 +425,7 @@ range_type_selector_maker<column_types...> select()
     return {};
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 template <typename T>
 class table<column_types...>::iterator_t {
     friend class table<column_types...>;
@@ -488,63 +491,80 @@ private:
     size_t offset_ = 0;
 };
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 auto table<column_types...>::begin() -> iterator
 {
     return { this, 0 };
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 auto table<column_types...>::begin() const -> const_iterator
 {
     return { this, 0 };
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 auto table<column_types...>::cbegin() const -> const_iterator
 {
     return { this, 0 };
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 auto table<column_types...>::end() const -> sentinel
 {
     return {};
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 auto table<column_types...>::cend() const -> sentinel
 {
     return {};
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 void table<column_types...>::reserve(size_t size)
 {
-    std::invoke([&]<size_t ... Is>(std::index_sequence<Is...>){
-        (std::get<Is>(data_).reserve(size),...);
-        index_.reserve(size);
-    }, column_numbers{});
+    std::invoke(
+        [&]<size_t... Is>(std::index_sequence<Is...>) {
+            (std::get<Is>(data_).reserve(size), ...);
+            index_.reserve(size);
+        },
+        column_numbers{});
 }
 
-template <typename ... column_types>
+template <nothrow_movable... column_types>
 auto table<column_types...>::capacity() const -> size_t
 {
     return index_.capacity();
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 template <typename... Us>
 auto table<column_types...>::insert(Us&&... us) -> row_id
-    requires(std::is_constructible_v<column_types, Us> && ...)
 {
     auto data_idx = static_cast<uint32_t>(rindex_.size());
-    auto push
-        = [&]<size_t... Is, typename T>(std::index_sequence<Is...>, T&& t) {
-              ((void)std::get<Is>(data_).emplace_back(
-                   std::get<Is>(std::forward<T>(t))),
-               ...);
-          };
+    auto push = [&]<size_t... Is, typename T>(std::index_sequence<Is...>,
+                                              T&& t) {
+        if constexpr ((std::is_nothrow_constructible_v<column_types, Us>
+                       && ...)) {
+            ((void)std::get<Is>(data_).emplace_back(
+                 std::get<Is>(std::forward<T>(t))),
+             ...);
+        } else {
+            size_t column = 0;
+            try {
+                (((void)std::get<Is>(data_).emplace_back(
+                      std::get<Is>(std::forward<T>(t))),
+                  column = Is),
+                 ...);
+
+            } catch (...) {
+                (((Is < column && (std::get<Is>(data_).pop_back(), true))),
+                 ...);
+                throw;
+            }
+        }
+    };
     std::invoke(
         push, column_numbers{}, std::forward_as_tuple(std::forward<Us>(us)...));
     if (first_free_.offset == index_.size()) {
@@ -560,7 +580,7 @@ auto table<column_types...>::insert(Us&&... us) -> row_id
     }
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 void table<column_types...>::erase(row_id k)
 {
     assert(k.offset < index_.size());
@@ -588,14 +608,14 @@ void table<column_types...>::erase(row_id k)
     first_free_ = k.next_generation();
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 void table<column_types...>::erase(const_iterator i)
 {
     assert(i.table_ == this);
     erase(rindex_[i.offset_]);
 }
 
-template <typename... column_types>
+template <nothrow_movable... column_types>
 bool table<column_types...>::has_row_id(row_id k) const
 {
     if (k.offset >= index_.size()) { return false; }
