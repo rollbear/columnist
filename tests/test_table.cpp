@@ -456,3 +456,28 @@ TEST_CASE("select range")
         }
     }
 }
+
+TEST_CASE("capacity")
+{
+    table<int, int> t;
+    const auto initial_capacity = t.capacity();
+    WHEN("reserving more")
+    {
+        t.reserve(100 + initial_capacity);
+        THEN("the capacity grows to at least the requested")
+        {
+            REQUIRE(t.capacity() >= initial_capacity + 100);
+        }
+    }
+    AND_WHEN("reserving less than the table holds")
+    {
+        t.insert(0, 0);
+        t.insert(1, 1);
+        t.insert(2, 2);
+        t.reserve(2);
+        THEN("the capacity is at least the minimum required to hold the data")
+        {
+            REQUIRE(t.capacity() >= 3);
+        }
+    }
+}

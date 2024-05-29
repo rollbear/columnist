@@ -198,6 +198,9 @@ public:
     [[nodiscard]] sentinel end() const;
     [[nodiscard]] sentinel cend() const;
 
+    void reserve(size_t size);
+    [[nodiscard]] size_t capacity() const;
+
     template <typename Predicate>
     friend size_t erase_if(table& t, Predicate predicate)
     {
@@ -513,6 +516,21 @@ template <typename... column_types>
 auto table<column_types...>::cend() const -> sentinel
 {
     return {};
+}
+
+template <typename... column_types>
+void table<column_types...>::reserve(size_t size)
+{
+    std::invoke([&]<size_t ... Is>(std::index_sequence<Is...>){
+        (std::get<Is>(data_).reserve(size),...);
+        index_.reserve(size);
+    }, column_numbers{});
+}
+
+template <typename ... column_types>
+auto table<column_types...>::capacity() const -> size_t
+{
+    return index_.capacity();
 }
 
 template <typename... column_types>
