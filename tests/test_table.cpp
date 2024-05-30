@@ -487,12 +487,22 @@ struct throws_on_negative {
     : value(v)
     {
         if (v < 0) { throw "negative"; }
+        ++object_count;
+    }
+
+    throws_on_negative(const throws_on_negative&) noexcept { ++object_count; }
+
+    ~throws_on_negative() { --object_count; }
+
+    throws_on_negative& operator=(const throws_on_negative&) noexcept
+    {
+        return *this;
     }
 
     bool operator==(int v) const noexcept { return v == value; }
 
     int value;
-    inline static size_t construction_count_until_throw = 0;
+    inline static int object_count = 0;
 };
 
 TEST_CASE("throwing on insert")
@@ -503,6 +513,7 @@ TEST_CASE("throwing on insert")
         auto r1 = t.insert(1, 2, 3);
         auto r2 = t.insert(11, 12, 13);
         auto r3 = t.insert(21, 22, 23);
+        const auto objects_before = throws_on_negative::object_count;
         WHEN("inserting a value that throws to the first column")
         {
             REQUIRE_THROWS(t.insert(-1, 32, 33));
@@ -515,6 +526,11 @@ TEST_CASE("throwing on insert")
                 REQUIRE(t[r2] == std::tuple(11, 12, 13));
                 REQUIRE(t.has_row_id(r3));
                 REQUIRE(t[r3] == std::tuple(21, 22, 23));
+            }
+            AND_THEN("the object count is the same as before the failed "
+                     "construction")
+            {
+                REQUIRE(objects_before == throws_on_negative::object_count);
             }
         }
         AND_WHEN("inresting a value that throws in the middle column")
@@ -530,6 +546,11 @@ TEST_CASE("throwing on insert")
                 REQUIRE(t.has_row_id(r3));
                 REQUIRE(t[r3] == std::tuple(21, 22, 23));
             }
+            AND_THEN("the object count is the same as before the failed "
+                     "construction")
+            {
+                REQUIRE(objects_before == throws_on_negative::object_count);
+            }
         }
         AND_WHEN("inresting a value that throws in the last column")
         {
@@ -543,6 +564,11 @@ TEST_CASE("throwing on insert")
                 REQUIRE(t[r2] == std::tuple(11, 12, 13));
                 REQUIRE(t.has_row_id(r3));
                 REQUIRE(t[r3] == std::tuple(21, 22, 23));
+            }
+            AND_THEN("the object count is the same as before the failed "
+                     "construction")
+            {
+                REQUIRE(objects_before == throws_on_negative::object_count);
             }
         }
     }

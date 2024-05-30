@@ -559,9 +559,7 @@ auto table<column_types...>::insert(Us&&... us) -> row_id
                  ...);
 
             } catch (...) {
-                (((Is < column && (std::get<Is>(data_).pop_back(), true))),
-                 ...);
-                throw;
+                ((Is < column ? std::get<Is>(data_).pop_back() : throw), ...);
             }
         }
     };
