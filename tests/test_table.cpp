@@ -490,12 +490,17 @@ struct throws_on_negative {
         ++object_count;
     }
 
-    throws_on_negative(const throws_on_negative&) noexcept { ++object_count; }
+    throws_on_negative(const throws_on_negative& v) noexcept
+    : value(v.value)
+    {
+        ++object_count;
+    }
 
     ~throws_on_negative() { --object_count; }
 
-    throws_on_negative& operator=(const throws_on_negative&) noexcept
+    throws_on_negative& operator=(const throws_on_negative& v) noexcept
     {
+        value = v.value;
         return *this;
     }
 

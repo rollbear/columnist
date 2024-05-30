@@ -555,7 +555,7 @@ auto table<column_types...>::insert(Us&&... us) -> row_id
             try {
                 (((void)std::get<Is>(data_).emplace_back(
                       std::get<Is>(std::forward<T>(t))),
-                  column = Is),
+                  column = Is + 1),
                  ...);
 
             } catch (...) {
