@@ -1,3 +1,5 @@
+![columnist-logo](columnist-logo.png)
+
 [![CI Build Status](https://github.com/rollbear/columnist/actions/workflows/build.yml/badge.svg)](https://github.com/rollbear/columnist/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/rollbear/columnist/graph/badge.svg?token=GVJMZUOC5G)](https://codecov.io/gh/rollbear/columnist)
 
