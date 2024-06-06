@@ -215,11 +215,12 @@ TEST_CASE("apply works with types inheriting from tuple", "[apply]")
 {
     auto a = apply(callable<throwing::no_throw>{});
     TT tt;
-    REQUIRE(std::is_same_v<int&, decltype(a(std::move(tt)))>);
-    REQUIRE(
+    STATIC_REQUIRE(std::is_same_v<int&, decltype(a(std::move(tt)))>);
+    STATIC_REQUIRE(
         std::is_same_v<const int&, decltype(std::as_const(a)(std::move(tt)))>);
-    REQUIRE(std::is_same_v<int&&, decltype(std::move(a)(std::move(tt)))>);
-    REQUIRE(
+    STATIC_REQUIRE(
+        std::is_same_v<int&&, decltype(std::move(a)(std::move(tt)))>);
+    STATIC_REQUIRE(
         std::is_same_v<const int&&,
                        decltype(std::move(std::as_const(a))(std::move(tt)))>);
 }

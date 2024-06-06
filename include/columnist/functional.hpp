@@ -27,6 +27,7 @@ template <typename F, size_t... Is>
 struct swizzle_ {
     template <typename Self, typename... Ts>
         requires((Is < sizeof...(Ts)) && ...)
+
     constexpr auto operator()(this Self&& self, Ts&&... ts) noexcept(
         std::is_nothrow_invocable_v<
             F&,
@@ -148,26 +149,22 @@ concept appliccable = std::invoke(
     },
     std::make_index_sequence<internal::tuple_size_v<T>>{});
 
-template <typename F>
-struct [[nodiscard]] apply_ {
-    template <typename Self, appliccable<forwarded_like_t<Self, F>> T>
-    constexpr decltype(auto) operator()(this Self&& self, T&& t) noexcept(
-        internal::is_nothrow_appliccable_v<forwarded_like_t<Self, F>, T>)
-    {
-        constexpr auto arity = internal::tuple_size_v<T>;
+inline constexpr auto apply = []<typename F>(F&& f) {
+    return [f = std::forward<F>(
+                f)]<typename Self, appliccable<forwarded_like_t<Self, F>> T>(
+               this Self&&, T&& t) noexcept(internal::
+                                                is_nothrow_appliccable_v<
+                                                    forwarded_like_t<Self, F>,
+                                                    T>) -> decltype(auto) {
         auto call
             = [&]<size_t... Is>(std::index_sequence<Is...>) -> decltype(auto) {
             using internal::get;
-            return std::forward<Self>(self).f(get<Is>(std::forward<T>(t))...);
+            return std::forward_like<Self>(f)(get<Is>(std::forward<T>(t))...);
         };
+        constexpr auto arity = internal::tuple_size_v<T>;
         return std::invoke(call, std::make_index_sequence<arity>{});
-    }
-
-    F f;
+    };
 };
-
-inline constexpr auto apply
-    = []<typename F>(F&& f) { return apply_{ std::forward<F>(f) }; };
 
 } // namespace columnist
 
