@@ -253,13 +253,13 @@ to the types referred to by `r`, not the types of the owning table, therefore
 `select()` can only be used to narrow a row to a subset of the elements referred
 to by `r`.
 
-#### `template <size_t ... selected_column_numbers, typename F> constexpr auto select<selected_column_numbers...>(F f)`
+#### `template <size_t ... selected_column_numbers, typename function> constexpr auto select<selected_column_numbers...>(function f)`
 
 Returns a callable that takes a `row` `r`, and calls `f(get<selected_column_numbers>(r)...)`
 
 The function `f` must be callable with a `row` with `selected_column_numbers` column_numbers.
 
-#### `template <typename ... column_types, typename F> constexpr auto select<column_types...>(F f)`
+#### `template <typename ... column_types, typename function> constexpr auto select<column_types...>(function f)`
 
 Returns a callable that takes a `row` r, and calls `f(std::get<column_types>(r)...)`
 
@@ -289,7 +289,7 @@ subselection of column_types from the types `column_types`.
 
 ### Overview
 
-#### `inline constexpr apply = []<typename F>(F&&f)`
+#### `inline constexpr apply = []<typename function>(function&& f)`
 
 Higher order function generalizing `std::apply()`.
 

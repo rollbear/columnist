@@ -26,7 +26,7 @@
 
 namespace columnist {
 
-template <typename Table, typename>
+template <typename, typename>
 class row;
 
 template <typename Table, size_t... table_column_numbers>
@@ -227,7 +227,7 @@ private:
     row_id first_free_ = row_id{ 0, 0 };
 };
 
-template <typename F, size_t... selected_column_numbers>
+template <typename function, size_t... selected_column_numbers>
 struct [[nodiscard]] function_selector {
     template <typename Table, typename columns>
     decltype(auto) operator()(row<Table, columns> r)
@@ -238,14 +238,14 @@ struct [[nodiscard]] function_selector {
         return captured_function(row<Table, new_columns>(r));
     }
 
-    F captured_function;
+    function captured_function;
 };
 
-template <size_t... selected_column_numbers, typename F>
-    requires(not is_row_v<F> && not row_range<F>)
-constexpr auto select(F f)
+template <size_t... selected_column_numbers, typename function>
+    requires(not is_row_v<function> && not row_range<function>)
+constexpr auto select(function f)
 {
-    return function_selector<F, selected_column_numbers...>{ f };
+    return function_selector<function, selected_column_numbers...>{ std::move(f) };
 };
 
 template <size_t... selected_columns, typename Table, size_t... row_columns>
@@ -287,7 +287,7 @@ template <typename... selected_types, typename function>
     requires(not is_row_v<function> && not row_range<function>)
 [[nodiscard]] constexpr auto select(function f)
 {
-    return function_type_selector<function, selected_types...>{ f };
+    return function_type_selector<function, selected_types...>{ std::move(f) };
 }
 
 template <row_range R, size_t... selected_columns>
