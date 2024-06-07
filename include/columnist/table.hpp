@@ -37,11 +37,7 @@ class [[nodiscard]] row<table_type,
     friend class row;
 
 public:
-    static constexpr size_t table_column_number(size_t i)
-    {
-        constexpr std::array columns{ table_column_numbers... };
-        return columns[i];
-    }
+    static constexpr size_t table_column_number(size_t i);
 
     template <size_t... column_numbers, typename T2>
         requires std::is_assignable_v<table_type*&, T2*>
@@ -52,10 +48,7 @@ public:
     : table_(r.table_), offset_(r.offset_)
     {}
 
-    [[nodiscard]] table_type::row_id row_id() const
-    {
-        return table_->rindex_[offset_];
-    }
+    [[nodiscard]] table_type::row_id row_id() const;
 
     template <size_t column_number>
         requires(column_number < sizeof...(table_column_numbers))
@@ -78,29 +71,16 @@ public:
     }
 
     template <typename... column_types>
-    bool operator==(const std::tuple<column_types...>& rh) const
-    {
-        auto elementwise_equality = [this](const auto&... vs) {
-            return (
-                (std::get<table_column_numbers>(table_->data_)[offset_] == vs)
-                && ...);
-        };
-        return std::apply(elementwise_equality, rh);
-    }
+    bool operator==(const std::tuple<column_types...>& rh) const;
 
     template <typename T2>
         requires(std::is_same_v<const T2&, const table_type&>)
     bool
     operator==(const row<T2, std::index_sequence<table_column_numbers...>>& rh)
-        const noexcept
-    {
-        return table_ == rh.table_ && offset_ == rh.offset_;
-    }
+        const noexcept;
 
 private:
-    row(table_type* table, size_t offset)
-    : table_(table), offset_(offset)
-    {}
+    row(table_type* table, size_t offset);
 
     table_type* table_ = nullptr;
     size_t offset_ = 0;
@@ -134,24 +114,7 @@ public:
     using row = columnist::row<table, column_numbers>;
     using const_row = columnist::row<const table, column_numbers>;
 
-    struct row_id {
-        row_id next_generation() const
-        {
-            auto copy = *this;
-            ++copy.generation;
-            return copy;
-        }
-
-        explicit constexpr row_id(uint32_t i, uint8_t g = 0)
-        : offset(i & ((1U << 24) - 1)), generation(g)
-        {}
-
-        bool operator==(const row_id&) const = default;
-
-        uint32_t offset: 24;
-        uint8_t generation;
-    };
-
+    struct row_id;
     template <typename>
     class iterator_t;
 
@@ -173,17 +136,9 @@ public:
 
     [[nodiscard]] bool has_row_id(row_id k) const;
 
-    [[nodiscard]] row operator[](row_id k)
-    {
-        assert(has_row_id(k));
-        return { this, index_[k.offset].offset };
-    }
+    [[nodiscard]] row operator[](row_id k);
 
-    [[nodiscard]] const_row operator[](row_id k) const
-    {
-        assert(has_row_id(k));
-        return { this, index_[k.offset].offset };
-    }
+    [[nodiscard]] const_row operator[](row_id k) const;
 
     [[nodiscard]] iterator begin();
     [[nodiscard]] const_iterator begin() const;
@@ -217,317 +172,100 @@ private:
     row_id first_free_ = row_id{ 0, 0 };
 };
 
-template <typename function, size_t... selected_column_numbers>
-struct [[nodiscard]] function_selector {
-    template <typename Table, typename columns>
-    decltype(auto) operator()(row<Table, columns> r)
-    {
-        using R = row<Table, columns>;
-        using new_columns = std::index_sequence<R::table_column_number(
-            selected_column_numbers)...>;
-        return captured_function(row<Table, new_columns>(r));
-    }
-
-    function captured_function;
-};
-
-template <size_t... selected_column_numbers, typename function>
-    requires(not is_row_v<function> && not row_range<function>)
-constexpr auto select(function f)
-{
-    return function_selector<function, selected_column_numbers...>{ std::move(
-        f) };
-};
-
-template <size_t... selected_columns, typename Table, size_t... row_columns>
-    requires((selected_columns < sizeof...(row_columns)) && ...)
-[[nodiscard]] constexpr auto
-select(const row<Table, std::index_sequence<row_columns...>>& r)
-{
-    constexpr auto indexes = std::array{ row_columns... };
-    return row<Table, std::index_sequence<indexes[selected_columns]...>>{ r };
-}
-
-template <typename... selected_types, typename Table, size_t... column_numbers>
-    requires(
-        (type_is_one_of<selected_types,
-                        typename Table::template column_type<column_numbers>...>
-         && ...))
-[[nodiscard]] constexpr auto
-select(const row<Table, std::index_sequence<column_numbers...>>& r)
-{
-    return select<
-        type_index<selected_types,
-                   typename Table::template column_type<column_numbers>...>...>(
-        r);
-}
-
-template <typename function, typename... selected_types>
-struct [[nodiscard]] function_type_selector {
-    template <typename row>
-        requires(is_row_v<row>)
-    decltype(auto) operator()(row r)
-    {
-        return captured_function(select<selected_types...>(r));
-    }
-
-    function captured_function;
-};
-
-template <typename... selected_types, typename function>
-    requires(not is_row_v<function> && not row_range<function>)
-[[nodiscard]] constexpr auto select(function f)
-{
-    return function_type_selector<function, selected_types...>{ std::move(f) };
-}
-
-template <row_range R, size_t... selected_columns>
-struct [[nodiscard]] range_index_selector {
-    using underlying_iterator = decltype(std::declval<R&>().begin());
-
-    struct iterator : underlying_iterator {
-        explicit iterator(underlying_iterator it) noexcept
-        : underlying_iterator(it)
-        {}
-
-        auto operator*() const
-        {
-            const underlying_iterator& i = *this;
-            return select<selected_columns...>(*i);
-        }
-
-        using difference_type = ssize_t;
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = decltype(select<selected_columns...>(
-            std::declval<typename underlying_iterator::value_type>()));
-    };
-
-    [[nodiscard]] iterator begin() const
-    {
-        using std::ranges::begin;
-        return iterator{ begin(captured_range) };
-    }
-
-    [[nodiscard]] iterator cbegin() const { return begin(); }
-
-    [[nodiscard]] auto end() const
-    {
-        using std::ranges::end;
-        return end(captured_range);
-    }
-
-    [[nodiscard]] auto cend() const { return end(); }
-
-    R& captured_range;
-};
-
-template <typename R, size_t... columns>
-concept row_range_with_column_numbers
-    = requires(R& r) { select<columns...>(*r.begin()); };
-
-template <size_t... columns, row_range_with_column_numbers<columns...> R>
-range_index_selector<R, columns...> select(R& r)
-{
-    return { r };
-}
-
-template <size_t...>
-struct [[nodiscard]] range_selector_maker {};
-
-template <size_t... column_numbers,
-          row_range_with_column_numbers<column_numbers...> R>
-range_index_selector<R, column_numbers...>
-operator|(R& r, range_selector_maker<column_numbers...>)
-{
-    return { r };
-};
-
-template <size_t... column_numbers>
-range_selector_maker<column_numbers...> select()
-{
-    return {};
-}
-
-template <row_range R, typename... column_types>
-struct [[nodiscard]] range_type_selector {
-    using underlying_iterator = decltype(std::declval<R&>().begin());
-
-    struct iterator : underlying_iterator {
-        explicit iterator(underlying_iterator it) noexcept
-        : underlying_iterator(it)
-        {}
-
-        auto operator*() const
-        {
-            const underlying_iterator& i = *this;
-            return select<column_types...>(*i);
-        }
-
-        using difference_type = ssize_t;
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = decltype(select<column_types...>(
-            std::declval<typename underlying_iterator::value_type>()));
-    };
-
-    [[nodiscard]] iterator begin() const
-    {
-        using std::ranges::begin;
-        return iterator{ begin(captured_range) };
-    }
-
-    [[nodiscard]] iterator cbegin() const { return begin(); }
-
-    [[nodiscard]] auto end() const
-    {
-        using std::ranges::end;
-        return end(captured_range);
-    }
-
-    [[nodiscard]] auto cend() const { return end(); }
-
-    R& captured_range;
-};
-
-template <typename R, typename... column_types>
-concept row_range_with_column_types
-    = requires(R& r) { select<column_types...>(*r.begin()); };
-
-template <typename... column_types,
-          row_range_with_column_types<column_types...> R>
-range_type_selector<R, column_types...> select(R& r)
-{
-    return { r };
-}
-
-template <typename...>
-struct [[nodiscard]] range_type_selector_maker {};
-
-template <typename... column_types,
-          row_range_with_column_types<column_types...> R>
-range_type_selector<R, column_types...>
-operator|(R& r, range_type_selector_maker<column_types...>)
-{
-    return { r };
-}
-
-template <typename... column_types>
-range_type_selector_maker<column_types...> select()
-{
-    return {};
-}
-
 template <nothrow_movable... column_types>
 template <typename T>
 class table<column_types...>::iterator_t {
     friend class table<column_types...>;
 
 public:
-    using iterator_category = std::forward_iterator_tag;
     using value_type = columnist::row<T, typename T::column_numbers>;
     using difference_type = ssize_t;
 
     iterator_t() = default;
 
-    operator iterator_t<const T>() const noexcept
-    {
-        return { table_, offset_ };
-    }
+    operator iterator_t<const T>() const noexcept;
 
     template <typename TT>
         requires(std::is_same_v<const TT, T>)
-    iterator_t& operator=(const iterator_t<TT>& tt) noexcept
-    {
-        table_ = tt.table_;
-        offset_ = tt.offset_;
-    }
+    iterator_t& operator=(const iterator_t<TT>& tt) noexcept;
 
     template <typename TT>
         requires(std::is_same_v<const TT, const T>)
-    bool operator==(const iterator_t<TT>& rh) const noexcept
-    {
-        return table_ == rh.table_ && offset_ == rh.offset_;
-    };
+    bool operator==(const iterator_t<TT>& rh) const noexcept;
 
-    bool operator==(sentinel) const noexcept
-    {
-        return offset_ == table_->size();
-    }
+    bool operator==(sentinel) const noexcept;
 
-    template <typename Self>
-    Self& operator++(this Self& self) noexcept
-    {
-        ++self.offset_;
-        return self;
-    }
+    template <typename self>
+        requires(!std::is_const_v<self>)
+    self& operator++(this self&) noexcept;
 
-    template <typename Self>
-    Self operator++(this Self& self, int) noexcept
-    {
-        auto copy = self;
-        ++self;
-        return copy;
-    }
+    iterator_t operator++(int) noexcept;
 
-    [[nodiscard]] value_type operator*() const noexcept
-    {
-        return value_type(table_, offset_);
-    }
+    [[nodiscard]] value_type operator*() const noexcept;
 
 private:
-    iterator_t(T* table, size_t offset)
-    : table_(table), offset_(offset)
-    {}
+    iterator_t(T* table, size_t offset);
 
     T* table_ = nullptr;
     size_t offset_ = 0;
 };
 
 template <nothrow_movable... column_types>
-auto table<column_types...>::begin() -> iterator
+struct table<column_types...>::row_id {
+    row_id next_generation() const noexcept;
+
+    explicit constexpr row_id(uint32_t i, uint8_t g = 0) noexcept;
+
+    bool operator==(const row_id&) const = default;
+
+    uint32_t offset: 24;
+    uint8_t generation;
+};
+
+template <typename table_type, size_t... table_column_numbers>
+constexpr auto
+row<table_type,
+    std::index_sequence<table_column_numbers...>>::table_column_number(size_t i)
+    -> size_t
 {
-    return { this, 0 };
+    constexpr std::array columns{ table_column_numbers... };
+    return columns[i];
 }
 
-template <nothrow_movable... column_types>
-auto table<column_types...>::begin() const -> const_iterator
+template <typename table_type, size_t... table_column_numbers>
+auto row<table_type, std::index_sequence<table_column_numbers...>>::row_id()
+    const -> table_type::row_id
 {
-    return { this, 0 };
+    return table_->rindex_[offset_];
 }
 
-template <nothrow_movable... column_types>
-auto table<column_types...>::cbegin() const -> const_iterator
+template <typename table_type, size_t... table_column_numbers>
+template <typename... column_types>
+auto row<table_type, std::index_sequence<table_column_numbers...>>::operator==(
+    const std::tuple<column_types...>& rh) const -> bool
 {
-    return { this, 0 };
+    auto elementwise_equality = [this](const auto&... vs) {
+        return ((std::get<table_column_numbers>(table_->data_)[offset_] == vs)
+                && ...);
+    };
+    return std::apply(elementwise_equality, rh);
 }
 
-template <nothrow_movable... column_types>
-auto table<column_types...>::end() const -> sentinel
+template <typename table_type, size_t... table_column_numbers>
+template <typename T2>
+    requires(std::is_same_v<const T2&, const table_type&>)
+auto row<table_type, std::index_sequence<table_column_numbers...>>::operator==(
+    const row<T2, std::index_sequence<table_column_numbers...>>& rh)
+    const noexcept -> bool
 {
-    return {};
+    return table_ == rh.table_ && offset_ == rh.offset_;
 }
 
-template <nothrow_movable... column_types>
-auto table<column_types...>::cend() const -> sentinel
-{
-    return {};
-}
-
-template <nothrow_movable... column_types>
-void table<column_types...>::reserve(size_t size)
-{
-    std::invoke(
-        [&]<size_t... Is>(std::index_sequence<Is...>) {
-            (std::get<Is>(data_).reserve(size), ...);
-            index_.reserve(size);
-        },
-        column_numbers{});
-}
-
-template <nothrow_movable... column_types>
-auto table<column_types...>::capacity() const -> size_t
-{
-    return index_.capacity();
-}
+template <typename table_type, size_t... table_column_numbers>
+row<table_type, std::index_sequence<table_column_numbers...>>::row(
+    table_type* table, size_t offset)
+: table_(table), offset_(offset)
+{}
 
 template <nothrow_movable... column_types>
 template <typename... Us>
@@ -611,6 +349,351 @@ bool table<column_types...>::has_row_id(row_id k) const
     auto data_offset = index_[k.offset].offset;
     if (data_offset >= rindex_.size()) { return false; }
     return rindex_[data_offset] == k;
+}
+
+template <nothrow_movable... column_types>
+auto table<column_types...>::operator[](row_id k) -> row
+{
+    assert(has_row_id(k));
+    return { this, index_[k.offset].offset };
+}
+
+template <nothrow_movable... column_types>
+auto table<column_types...>::operator[](row_id k) const -> const_row
+{
+    assert(has_row_id(k));
+    return { this, index_[k.offset].offset };
+}
+
+template <nothrow_movable... column_types>
+auto table<column_types...>::begin() -> iterator
+{
+    return { this, 0 };
+}
+
+template <nothrow_movable... column_types>
+auto table<column_types...>::begin() const -> const_iterator
+{
+    return { this, 0 };
+}
+
+template <nothrow_movable... column_types>
+auto table<column_types...>::cbegin() const -> const_iterator
+{
+    return { this, 0 };
+}
+
+template <nothrow_movable... column_types>
+auto table<column_types...>::end() const -> sentinel
+{
+    return {};
+}
+
+template <nothrow_movable... column_types>
+auto table<column_types...>::cend() const -> sentinel
+{
+    return {};
+}
+
+template <nothrow_movable... column_types>
+void table<column_types...>::reserve(size_t size)
+{
+    std::invoke(
+        [&]<size_t... Is>(std::index_sequence<Is...>) {
+            (std::get<Is>(data_).reserve(size), ...);
+            index_.reserve(size);
+        },
+        column_numbers{});
+}
+
+template <nothrow_movable... column_types>
+auto table<column_types...>::capacity() const -> size_t
+{
+    return index_.capacity();
+}
+
+template <nothrow_movable... column_types>
+template <typename T>
+table<column_types...>::iterator_t<T>::operator iterator_t<const T>()
+    const noexcept
+{
+    return { table_, offset_ };
+}
+
+template <nothrow_movable... column_types>
+template <typename T>
+template <typename TT>
+    requires(std::is_same_v<const TT, T>)
+auto table<column_types...>::iterator_t<T>::operator=(
+    const iterator_t<TT>& tt) noexcept -> iterator_t&
+{
+    table_ = tt.table_;
+    offset_ = tt.offset_;
+}
+
+template <nothrow_movable... column_types>
+template <typename T>
+template <typename TT>
+    requires(std::is_same_v<const TT, const T>)
+auto table<column_types...>::iterator_t<T>::operator==(
+    const iterator_t<TT>& rh) const noexcept -> bool
+{
+    return table_ == rh.table_ && offset_ == rh.offset_;
+}
+
+template <nothrow_movable... column_types>
+template <typename T>
+auto table<column_types...>::iterator_t<T>::operator==(sentinel) const noexcept
+    -> bool
+{
+    return offset_ == table_->size();
+}
+
+template <nothrow_movable... column_types>
+template <typename T>
+template <typename self>
+    requires(!std::is_const_v<self>)
+auto table<column_types...>::iterator_t<T>::operator++(this self& s) noexcept
+    -> self&
+{
+    ++s.offset_;
+    return s;
+}
+
+template <nothrow_movable... column_types>
+template <typename T>
+auto table<column_types...>::iterator_t<T>::operator++(int) noexcept
+    -> iterator_t
+{
+    auto copy = *this;
+    ++*this;
+    return copy;
+}
+
+template <nothrow_movable... column_types>
+template <typename T>
+auto table<column_types...>::iterator_t<T>::operator*() const noexcept
+    -> value_type
+{
+    return value_type(table_, offset_);
+}
+
+template <nothrow_movable... column_types>
+template <typename T>
+table<column_types...>::iterator_t<T>::iterator_t(T* table, size_t offset)
+: table_(table), offset_(offset)
+{}
+
+template <nothrow_movable... column_types>
+auto table<column_types...>::row_id::next_generation() const noexcept -> row_id
+{
+    auto copy = *this;
+    ++copy.generation;
+    return copy;
+}
+
+template <nothrow_movable... column_types>
+constexpr table<column_types...>::row_id::row_id(uint32_t i, uint8_t g) noexcept
+: offset(i & ((1U << 24) - 1)), generation(g)
+{}
+
+template <typename function, size_t... selected_column_numbers>
+struct [[nodiscard]] function_selector {
+    template <typename Table, typename columns>
+    decltype(auto) operator()(row<Table, columns> r)
+    {
+        using R = row<Table, columns>;
+        using new_columns = std::index_sequence<R::table_column_number(
+            selected_column_numbers)...>;
+        return captured_function(row<Table, new_columns>(r));
+    }
+
+    function captured_function;
+};
+
+template <size_t... selected_column_numbers, typename function>
+    requires(not is_row_v<function> && not row_range<function>)
+constexpr auto select(function f)
+{
+    return function_selector<function, selected_column_numbers...>{ std::move(
+        f) };
+};
+
+template <size_t... selected_columns, typename Table, size_t... row_columns>
+    requires((selected_columns < sizeof...(row_columns)) && ...)
+[[nodiscard]] constexpr auto
+select(const row<Table, std::index_sequence<row_columns...>>& r)
+{
+    constexpr auto indexes = std::array{ row_columns... };
+    return row<Table, std::index_sequence<indexes[selected_columns]...>>{ r };
+}
+
+template <typename... selected_types, typename Table, size_t... column_numbers>
+    requires(
+        (type_is_one_of<selected_types,
+                        typename Table::template column_type<column_numbers>...>
+         && ...))
+[[nodiscard]] constexpr auto
+select(const row<Table, std::index_sequence<column_numbers...>>& r)
+{
+    return select<
+        type_index<selected_types,
+                   typename Table::template column_type<column_numbers>...>...>(
+        r);
+}
+
+template <typename function, typename... selected_types>
+struct [[nodiscard]] function_type_selector {
+    template <typename row>
+        requires(is_row_v<row>)
+    decltype(auto) operator()(row r)
+    {
+        return captured_function(select<selected_types...>(r));
+    }
+
+    function captured_function;
+};
+
+template <typename... selected_types, typename function>
+    requires(not is_row_v<function> && not row_range<function>)
+[[nodiscard]] constexpr auto select(function f)
+{
+    return function_type_selector<function, selected_types...>{ std::move(f) };
+}
+
+template <row_range R, size_t... selected_columns>
+struct [[nodiscard]] range_index_selector {
+    using underlying_iterator = decltype(std::declval<R&>().begin());
+
+    struct iterator : underlying_iterator {
+        explicit iterator(underlying_iterator it) noexcept
+        : underlying_iterator(it)
+        {}
+
+        using underlying_iterator ::operator++;
+
+        auto operator*() const
+        {
+            const underlying_iterator& i = *this;
+            return select<selected_columns...>(*i);
+        }
+
+        using difference_type = ssize_t;
+        using value_type = decltype(select<selected_columns...>(
+            std::declval<typename underlying_iterator::value_type>()));
+    };
+
+    [[nodiscard]] iterator begin() const
+    {
+        using std::ranges::begin;
+        return iterator{ begin(captured_range) };
+    }
+
+    [[nodiscard]] iterator cbegin() const { return begin(); }
+
+    [[nodiscard]] auto end() const
+    {
+        using std::ranges::end;
+        return end(captured_range);
+    }
+
+    [[nodiscard]] auto cend() const { return end(); }
+
+    R& captured_range;
+};
+
+template <typename R, size_t... columns>
+concept row_range_with_column_numbers
+    = requires(R& r) { select<columns...>(*r.begin()); };
+
+template <size_t... columns, row_range_with_column_numbers<columns...> R>
+range_index_selector<R, columns...> select(R& r)
+{
+    return { r };
+}
+
+template <size_t...>
+struct [[nodiscard]] range_selector_maker {};
+
+template <size_t... column_numbers,
+          row_range_with_column_numbers<column_numbers...> R>
+range_index_selector<R, column_numbers...>
+operator|(R& r, range_selector_maker<column_numbers...>)
+{
+    return { r };
+};
+
+template <size_t... column_numbers>
+range_selector_maker<column_numbers...> select()
+{
+    return {};
+}
+
+template <row_range R, typename... column_types>
+struct [[nodiscard]] range_type_selector {
+    using underlying_iterator = decltype(std::declval<R&>().begin());
+
+    struct iterator : underlying_iterator {
+        explicit iterator(underlying_iterator it) noexcept
+        : underlying_iterator(it)
+        {}
+
+        auto operator*() const
+        {
+            const underlying_iterator& i = *this;
+            return select<column_types...>(*i);
+        }
+
+        using difference_type = ssize_t;
+        using value_type = decltype(select<column_types...>(
+            std::declval<typename underlying_iterator::value_type>()));
+    };
+
+    [[nodiscard]] iterator begin() const
+    {
+        using std::ranges::begin;
+        return iterator{ begin(captured_range) };
+    }
+
+    [[nodiscard]] iterator cbegin() const { return begin(); }
+
+    [[nodiscard]] auto end() const
+    {
+        using std::ranges::end;
+        return end(captured_range);
+    }
+
+    [[nodiscard]] auto cend() const { return end(); }
+
+    R& captured_range;
+};
+
+template <typename R, typename... column_types>
+concept row_range_with_column_types
+    = requires(R& r) { select<column_types...>(*r.begin()); };
+
+template <typename... column_types,
+          row_range_with_column_types<column_types...> R>
+range_type_selector<R, column_types...> select(R& r)
+{
+    return { r };
+}
+
+template <typename...>
+struct [[nodiscard]] range_type_selector_maker {};
+
+template <typename... column_types,
+          row_range_with_column_types<column_types...> R>
+range_type_selector<R, column_types...>
+operator|(R& r, range_type_selector_maker<column_types...>)
+{
+    return { r };
+}
+
+template <typename... column_types>
+range_type_selector_maker<column_types...> select()
+{
+    return {};
 }
 
 } // namespace columnist
