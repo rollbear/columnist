@@ -41,6 +41,23 @@ static constexpr size_t type_index<T, T, Ts...> = 0;
 template <typename T, typename... Ts>
 inline constexpr bool type_is_one_of = (std::is_same_v<T, Ts> || ...);
 
+template <size_t I, typename T, typename... Ts>
+struct nth_type {
+    using type = typename nth_type<I - 1, Ts...>::type;
+};
+
+template <typename T, typename... Ts>
+struct nth_type<0, T, Ts...> {
+    using type = T;
+};
+
+template <size_t I, typename... Ts>
+using nth_type_t = typename nth_type<I, Ts...>::type;
+
+template <typename T>
+concept nothrow_movable = std::is_nothrow_move_constructible_v<T>
+                       && std::is_nothrow_move_assignable_v<T>;
+
 } // namespace columnist
 
 #endif // COLUMNIST_TYPE_UTILS_HPP

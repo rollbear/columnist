@@ -29,9 +29,10 @@ namespace columnist {
 template <typename, typename>
 class row;
 
-template <typename Table, size_t... table_column_numbers>
-class [[nodiscard]] row<Table, std::index_sequence<table_column_numbers...>> {
-    friend Table;
+template <typename table_type, size_t... table_column_numbers>
+class [[nodiscard]] row<table_type,
+                        std::index_sequence<table_column_numbers...>> {
+    friend table_type;
     template <typename, typename>
     friend class row;
 
@@ -42,42 +43,37 @@ public:
         return columns[i];
     }
 
-    using column_types = std::tuple<
-        typename Table::template column_type<table_column_numbers>...>;
-    template <size_t column_number>
-    using column_type
-        = forwarded_like_t<Table,
-                           std::tuple_element_t<column_number, column_types>>;
-
     row() = default;
 
     template <size_t... column_numbers>
-    explicit row(
-        const row<Table, std::index_sequence<column_numbers...>>& r) noexcept
+    explicit row(const row<table_type, std::index_sequence<column_numbers...>>&
+                     r) noexcept
     : table_(r.table_), offset_(r.offset_)
     {}
 
-    [[nodiscard]] Table::row_id row_id() const
+    [[nodiscard]] table_type::row_id row_id() const
     {
         return table_->rindex_[offset_];
     }
 
     template <size_t column_number>
         requires(column_number < sizeof...(table_column_numbers))
-    friend column_type<column_number>& get(row r)
+    friend auto& get(row r)
     {
         constexpr auto table_column = table_column_number(column_number);
         return std::get<table_column>(r.table_->data_)[r.offset_];
     }
 
     template <typename column_type>
-        requires(Table::template has_type<column_type>)
+        requires(type_is_one_of<column_type,
+                                typename table_type::template column_type<
+                                    table_column_numbers>...>)
     friend auto& get(row r)
     {
         constexpr size_t table_column
-            = Table::template column_type_number<column_type>;
+            = table_type::template column_type_number<column_type>;
         auto& element = std::get<table_column>(r.table_->data_)[r.offset_];
-        return std::forward_like<Table&>(element);
+        return std::forward_like<table_type&>(element);
     }
 
     template <typename... column_numbers>
@@ -92,7 +88,7 @@ public:
     }
 
     template <typename T2>
-        requires(std::is_same_v<const T2&, const Table&>)
+        requires(std::is_same_v<const T2&, const table_type&>)
     bool
     operator==(const row<T2, std::index_sequence<table_column_numbers...>>& rh)
         const noexcept
@@ -101,11 +97,11 @@ public:
     }
 
 private:
-    row(Table* table, size_t offset)
+    row(table_type* table, size_t offset)
     : table_(table), offset_(offset)
     {}
 
-    Table* table_ = nullptr;
+    table_type* table_ = nullptr;
     size_t offset_ = 0;
 };
 
@@ -119,10 +115,6 @@ constexpr bool is_row_v<row<Table, std::index_sequence<column_numbers...>>>
 template <typename R>
 concept row_range = is_row_v<decltype(*std::declval<R&>().begin())>;
 
-template <typename T>
-concept nothrow_movable = std::is_nothrow_move_constructible_v<T>
-                       && std::is_nothrow_move_assignable_v<T>;
-
 template <nothrow_movable... column_types>
 class table {
     template <typename, typename>
@@ -134,9 +126,6 @@ public:
     template <size_t column_number>
     using column_type
         = std::tuple_element_t<column_number, std::tuple<column_types...>>;
-    template <typename T>
-    static constexpr bool has_type
-        = columnist::type_is_one_of<T, column_types...>;
     template <typename column_type>
     static constexpr size_t column_type_number
         = columnist::type_index<column_type, column_types...>;
@@ -245,7 +234,8 @@ template <size_t... selected_column_numbers, typename function>
     requires(not is_row_v<function> && not row_range<function>)
 constexpr auto select(function f)
 {
-    return function_selector<function, selected_column_numbers...>{ std::move(f) };
+    return function_selector<function, selected_column_numbers...>{ std::move(
+        f) };
 };
 
 template <size_t... selected_columns, typename Table, size_t... row_columns>
@@ -624,11 +614,15 @@ bool table<column_types...>::has_row_id(row_id k) const
 
 } // namespace columnist
 
-template <std::size_t I, typename Table, typename column_numbers>
-struct std::tuple_element<I, columnist::row<Table, column_numbers>> {
-    using type =
-        typename columnist::row<Table,
-                                column_numbers>::template column_type<I>&;
+template <std::size_t I, typename Table, size_t... column_numbers>
+struct std::tuple_element<
+    I,
+    columnist::row<Table, std::index_sequence<column_numbers...>>> {
+    using type = columnist::forwarded_like_t<
+        Table&,
+        columnist::nth_type_t<
+            I,
+            typename Table::template column_type<column_numbers>...>&>;
 };
 
 template <typename Table, size_t... column_numbers>
