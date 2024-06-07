@@ -43,10 +43,6 @@ public:
         return columns[i];
     }
 
-    row() = default;
-    row(const row&) = default;
-    row& operator=(const row&) = default;
-
     template <size_t... column_numbers, typename T2>
         requires std::is_assignable_v<table_type*&, T2*>
                   && (index_is_one_of<table_column_numbers, column_numbers...>
