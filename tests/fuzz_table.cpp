@@ -64,8 +64,7 @@ void fuzz(generator g)
     try {
         size_t elems = 0;
 
-        auto get_idx
-            = [&keys, &g, &elems] { return g.get<unsigned>() % elems; };
+        auto get_idx = [&g, &elems] { return g.get<unsigned>() % elems; };
         for (;;) {
             if (!v) { v.emplace(); }
             switch (g.get()) {
@@ -84,7 +83,7 @@ void fuzz(generator g)
                 assert(std::ranges::none_of(retired_keys, equals(h)));
                 keys.push_back(h);
                 ++elems;
-                *get<0>((*v)[h]) = { h.index, h.generation };
+                *get<0>((*v)[h]) = { h.offset, h.generation };
                 break;
             }
             case 3: {
@@ -107,7 +106,7 @@ void fuzz(generator g)
                     auto k = keys[idx];
                     assert(v->has_row_id(k));
                     auto& p = get<0>((*v)[k]);
-                    assert(p->idx == k.index);
+                    assert(p->idx == k.offset);
                     assert(p->gen == k.generation);
                 }
                 break;
@@ -118,7 +117,7 @@ void fuzz(generator g)
                     auto k = (*i).row_id();
                     auto [val] = *i;
                     assert(val->gen == k.generation);
-                    assert(val->idx == k.index);
+                    assert(val->idx == k.offset);
                     ++count;
                 }
                 assert(count == elems);
