@@ -44,10 +44,15 @@ public:
     }
 
     row() = default;
+    row(const row&) = default;
+    row& operator=(const row&) = default;
 
-    template <size_t... column_numbers>
-    explicit row(const row<table_type, std::index_sequence<column_numbers...>>&
-                     r) noexcept
+    template <size_t... column_numbers, typename T2>
+        requires std::is_assignable_v<table_type*&, T2*>
+                  && (index_is_one_of<table_column_numbers, column_numbers...>
+                      && ...)
+    explicit row(
+        const row<T2, std::index_sequence<column_numbers...>>& r) noexcept
     : table_(r.table_), offset_(r.offset_)
     {}
 

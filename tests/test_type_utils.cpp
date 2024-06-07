@@ -36,4 +36,7 @@ static_assert(std::is_same_v<const int&,
 static_assert(
     std::is_same_v<int&&, columnist::forwarded_like_t<float&&, int&>>);
 
+static_assert(columnist::index_is_one_of<1, 0, 1, 2, 3>);
+static_assert(!columnist::index_is_one_of<0, 1, 2, 3, 4>);
+
 int main() { std::puts("It compiled, so it passed"); }

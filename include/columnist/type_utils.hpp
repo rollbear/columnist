@@ -41,6 +41,9 @@ static constexpr size_t type_index<T, T, Ts...> = 0;
 template <typename T, typename... Ts>
 inline constexpr bool type_is_one_of = (std::is_same_v<T, Ts> || ...);
 
+template <size_t I, size_t... Is>
+inline constexpr bool index_is_one_of = ((I == Is) || ...);
+
 template <size_t I, typename T, typename... Ts>
 struct nth_type {
     using type = typename nth_type<I - 1, Ts...>::type;
