@@ -76,8 +76,8 @@ public:
         return std::forward_like<table_type&>(element);
     }
 
-    template <typename... column_numbers>
-    bool operator==(const std::tuple<column_numbers...>& rh) const
+    template <typename... column_types>
+    bool operator==(const std::tuple<column_types...>& rh) const
     {
         auto elementwise_equality = [this](const auto&... vs) {
             return (
