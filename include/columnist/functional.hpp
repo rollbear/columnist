@@ -23,35 +23,22 @@
 
 namespace columnist {
 
-template <typename F, size_t... Is>
-struct swizzle_ {
-    template <typename Self, typename... Ts>
-        requires((Is < sizeof...(Ts)) && ...)
-
-    constexpr auto operator()(this Self&& self, Ts&&... ts) noexcept(
-        std::is_nothrow_invocable_v<
-            F&,
-            std::tuple_element_t<Is, std::tuple<Ts...>>...>)
-        -> std::invoke_result_t<forwarded_like_t<Self, F&>,
-                                std::tuple_element_t<Is, std::tuple<Ts...>>...>
-    {
-        return call(std::forward<Self>(self).f, std::forward<Ts>(ts)...);
-    }
-
-    template <typename FF, typename... Ts>
-    static constexpr decltype(auto) call(FF&& ff, Ts&&... ts)
-    {
-        auto tup = std::forward_as_tuple(std::forward<Ts>(ts)...);
-        return std::invoke(std::forward<FF>(ff),
-                           std::get<Is>(std::move(tup))...);
-    }
-
-    F f;
-};
-
 template <size_t... Ids>
 inline constexpr auto swizzle = []<typename F>(F&& f) {
-    return swizzle_<std::remove_cvref_t<F>, Ids...>{ std::forward<F>(f) };
+    return [f = std::forward<F>(f)]<typename self, typename... Ts>(
+               this self&&,
+               Ts&&... ts) noexcept(std::
+                                        is_nothrow_invocable_v<
+                                            forwarded_like_t<self, F&>,
+                                            std::tuple_element_t<
+                                                Ids,
+                                                std::tuple<Ts...>>...>)
+               -> std::invoke_result_t<
+                   forwarded_like_t<self, F&>,
+                   std::tuple_element_t<Ids, std::tuple<Ts...>>...> {
+        auto tup = std::forward_as_tuple(std::forward<Ts>(ts)...);
+        return std::forward_like<self>(f)(std::get<Ids>(std::move(tup))...);
+    };
 };
 
 namespace internal {
