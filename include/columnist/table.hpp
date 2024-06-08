@@ -553,8 +553,6 @@ struct [[nodiscard]] range_index_selector {
         : underlying_iterator(it)
         {}
 
-        using underlying_iterator ::operator++;
-
         auto operator*() const
         {
             const underlying_iterator& i = *this;
