@@ -593,12 +593,11 @@ range_index_selector<R, columns...> select(R& r)
     return { r };
 }
 
-template <size_t...>
+template <size_t... column_numbers>
 struct [[nodiscard]] range_selector_maker {
-    template <size_t... column_numbers,
-              row_range_with_column_numbers<column_numbers...> R>
+    template <row_range_with_column_numbers<column_numbers...> R>
     friend range_index_selector<R, column_numbers...>
-    operator|(R& r, range_selector_maker<column_numbers...>)
+    operator|(R& r, range_selector_maker)
     {
         return { r };
     }
@@ -660,12 +659,11 @@ range_type_selector<R, column_types...> select(R& r)
     return { r };
 }
 
-template <typename...>
+template <typename... column_types>
 struct [[nodiscard]] range_type_selector_maker {
-    template <typename... column_types,
-              row_range_with_column_types<column_types...> R>
+    template <row_range_with_column_types<column_types...> R>
     friend range_type_selector<R, column_types...>
-    operator|(R& r, range_type_selector_maker<column_types...>)
+    operator|(R& r, range_type_selector_maker)
     {
         return { r };
     }
