@@ -182,7 +182,7 @@ class table<column_types...>::iterator_t {
 
 public:
     using value_type = columnist::row<T, typename T::column_numbers>;
-    using difference_type = ssize_t;
+    using difference_type = ptrdiff_t;
 
     iterator_t() = default;
 
@@ -559,7 +559,7 @@ struct [[nodiscard]] range_index_selector {
             return select<selected_columns...>(*i);
         }
 
-        using difference_type = ssize_t;
+        using difference_type = ptrdiff_t;
         using value_type = decltype(select<selected_columns...>(
             std::declval<typename underlying_iterator::value_type>()));
     };
@@ -624,7 +624,7 @@ struct [[nodiscard]] range_type_selector {
             return select<column_types...>(*i);
         }
 
-        using difference_type = ssize_t;
+        using difference_type = ptrdiff_t;
         using value_type = decltype(select<column_types...>(
             std::declval<typename underlying_iterator::value_type>()));
     };
