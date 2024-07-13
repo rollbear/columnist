@@ -39,6 +39,11 @@ class [[nodiscard]] row<table_type,
 public:
     static constexpr size_t table_column_number(size_t i);
 
+    template <typename T>
+    static constexpr bool has_type = type_is_one_of<
+        T,
+        typename table_type::template column_type<table_column_numbers>...>;
+
     template <size_t... column_numbers, typename T2>
         requires std::is_assignable_v<table_type*&, T2*>
                   && (index_is_one_of<table_column_numbers, column_numbers...>
@@ -47,6 +52,21 @@ public:
         const row<T2, std::index_sequence<column_numbers...>>& r) noexcept
     : table_(r.table_), offset_(r.offset_)
     {}
+
+    template <size_t... column_numbers>
+        requires((column_numbers < sizeof...(table_column_numbers)) && ...)
+    [[nodiscard]] constexpr row<
+        table_type,
+        std::index_sequence<table_column_number(column_numbers)...>>
+    narrow() const;
+
+    template <typename... column_types>
+    [[nodiscard]] constexpr row<
+        table_type,
+        std::index_sequence<
+            table_type::template column_type_number<column_types>...>>
+    narrow() const
+        requires(has_type<column_types> && ...);
 
     [[nodiscard]] table_type::row_id row_id() const;
 
@@ -233,6 +253,30 @@ row<table_type,
 {
     constexpr std::array columns{ table_column_numbers... };
     return columns[i];
+}
+
+template <typename table_type, size_t... table_column_numbers>
+template <size_t... column_numbers>
+    requires((column_numbers < sizeof...(table_column_numbers)) && ...)
+constexpr auto
+row<table_type, std::index_sequence<table_column_numbers...>>::narrow() const
+    -> row<table_type,
+           std::index_sequence<table_column_number(column_numbers)...>>
+{
+    return { table_, offset_ };
+}
+
+template <typename table_type, size_t... table_column_numbers>
+template <typename... column_types>
+[[nodiscard]] constexpr auto
+row<table_type, std::index_sequence<table_column_numbers...>>::narrow() const
+    -> row<table_type,
+           std::index_sequence<
+               table_type::template column_type_number<column_types>...>>
+    requires(has_type<column_types> && ...)
+
+{
+    return { table_, offset_ };
 }
 
 template <typename table_type, size_t... table_column_numbers>
@@ -500,27 +544,18 @@ constexpr table<column_types...>::row_id::row_id(uint32_t i, uint8_t g) noexcept
 : offset(i & ((1U << 24) - 1)), generation(g)
 {}
 
-template <size_t... selected_columns, typename Table, size_t... row_columns>
-    requires((selected_columns < sizeof...(row_columns)) && ...)
-[[nodiscard]] constexpr auto
-select(const row<Table, std::index_sequence<row_columns...>>& r)
+template <size_t... selected_columns, typename R>
+    requires row_type<std::remove_cvref_t<R>>
+[[nodiscard]] constexpr auto select(R&& r)
 {
-    constexpr auto indexes = std::array{ row_columns... };
-    return row<Table, std::index_sequence<indexes[selected_columns]...>>{ r };
+    return r.template narrow<selected_columns...>();
 }
 
-template <typename... selected_types, typename Table, size_t... column_numbers>
-    requires(
-        (type_is_one_of<selected_types,
-                        typename Table::template column_type<column_numbers>...>
-         && ...))
-[[nodiscard]] constexpr auto
-select(const row<Table, std::index_sequence<column_numbers...>>& r)
+template <typename... selected_types, typename R>
+    requires row_type<std::remove_cvref_t<R>>
+[[nodiscard]] constexpr auto select(R&& r)
 {
-    return select<
-        type_index<selected_types,
-                   typename Table::template column_type<column_numbers>...>...>(
-        r);
+    return r.template narrow<selected_types...>();
 }
 
 template <size_t... selected_column_numbers, typename function>
