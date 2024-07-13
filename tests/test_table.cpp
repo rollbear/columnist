@@ -65,29 +65,29 @@ static_assert(
 static_assert(
     is_nothrow_comparable_v<table_ids::iterator, table_ids::iterator>);
 
-static_assert(std::is_nothrow_constructible_v<
-              columnist::row<table_ids, std::index_sequence<0, 1>>,
-              columnist::row<table_ids, std::index_sequence<0, 1, 2>>>);
+static_assert(
+    std::is_nothrow_constructible_v<columnist::row<table_ids, 0, 1>,
+                                    columnist::row<table_ids, 0, 1, 2>>);
+
+static_assert(
+    not std::is_nothrow_constructible_v<columnist::row<table_ids, 0, 1, 2>,
+                                        columnist::row<table_ids, 0, 1>>);
+
+static_assert(
+    std::is_nothrow_constructible_v<columnist::row<table_ids, 0, 1, 2>,
+                                    columnist::row<table_ids, 0, 1, 2>>);
+
+static_assert(
+    std::is_nothrow_constructible_v<columnist::row<const table_ids, 0, 1, 2>,
+                                    columnist::row<table_ids, 0, 1, 2>>);
 
 static_assert(not std::is_nothrow_constructible_v<
-              columnist::row<table_ids, std::index_sequence<0, 1, 2>>,
-              columnist::row<table_ids, std::index_sequence<0, 1>>>);
+              columnist::row<table_ids, 0, 1, 2>,
+              columnist::row<const table_ids, 0, 1, 2>>);
 
-static_assert(std::is_nothrow_constructible_v<
-              columnist::row<table_ids, std::index_sequence<0, 1, 2>>,
-              columnist::row<table_ids, std::index_sequence<0, 1, 2>>>);
-
-static_assert(std::is_nothrow_constructible_v<
-              columnist::row<const table_ids, std::index_sequence<0, 1, 2>>,
-              columnist::row<table_ids, std::index_sequence<0, 1, 2>>>);
-
-static_assert(not std::is_nothrow_constructible_v<
-              columnist::row<table_ids, std::index_sequence<0, 1, 2>>,
-              columnist::row<const table_ids, std::index_sequence<0, 1, 2>>>);
-
-static_assert(std::is_nothrow_constructible_v<
-              columnist::row<const table_ids, std::index_sequence<0, 1, 2>>,
-              columnist::row<const table_ids, std::index_sequence<0, 1, 2>>>);
+static_assert(
+    std::is_nothrow_constructible_v<columnist::row<const table_ids, 0, 1, 2>,
+                                    columnist::row<const table_ids, 0, 1, 2>>);
 
 TEST_CASE("a default constructed columnist is empty")
 {

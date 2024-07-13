@@ -26,14 +26,10 @@
 
 namespace columnist {
 
-template <typename, typename>
-class row;
-
 template <typename table_type, size_t... table_column_numbers>
-class [[nodiscard]] row<table_type,
-                        std::index_sequence<table_column_numbers...>> {
+class [[nodiscard]] row {
     friend table_type;
-    template <typename, typename>
+    template <typename, size_t...>
     friend class row;
 
 public:
@@ -48,23 +44,20 @@ public:
         requires std::is_assignable_v<table_type*&, T2*>
                   && (index_is_one_of<table_column_numbers, column_numbers...>
                       && ...)
-    explicit row(
-        const row<T2, std::index_sequence<column_numbers...>>& r) noexcept
+    explicit row(const row<T2, column_numbers...>& r) noexcept
     : table_(r.table_), offset_(r.offset_)
     {}
 
     template <size_t... column_numbers>
         requires((column_numbers < sizeof...(table_column_numbers)) && ...)
-    [[nodiscard]] constexpr row<
-        table_type,
-        std::index_sequence<table_column_number(column_numbers)...>>
+    [[nodiscard]] constexpr row<table_type,
+                                table_column_number(column_numbers)...>
     narrow() const;
 
     template <typename... column_types>
     [[nodiscard]] constexpr row<
         table_type,
-        std::index_sequence<
-            table_type::template column_type_number<column_types>...>>
+        table_type::template column_type_number<column_types>...>
     narrow() const
         requires(has_type<column_types> && ...);
 
@@ -95,9 +88,7 @@ public:
 
     template <typename T2>
         requires(std::is_same_v<const T2&, const table_type&>)
-    bool
-    operator==(const row<T2, std::index_sequence<table_column_numbers...>>& rh)
-        const noexcept;
+    bool operator==(const row<T2, table_column_numbers...>& rh) const noexcept;
 
 private:
     row(table_type* table, size_t offset);
@@ -110,8 +101,7 @@ template <typename>
 constexpr bool is_row_v = false;
 
 template <typename Table, size_t... column_numbers>
-constexpr bool is_row_v<row<Table, std::index_sequence<column_numbers...>>>
-    = true;
+constexpr bool is_row_v<row<Table, column_numbers...>> = true;
 
 template <typename R>
 concept row_type = is_row_v<R>;
@@ -121,21 +111,29 @@ concept row_range = is_row_v<decltype(*std::declval<R&>().begin())>;
 
 template <nothrow_movable... column_types>
 class table {
-    template <typename, typename>
+    template <typename, size_t...>
     friend class row;
 
     using column_numbers = std::index_sequence_for<column_types...>;
+
+    template <typename T>
+    static constexpr auto make_row_type
+        = []<size_t... Is>(std::index_sequence<Is...>) -> row<T, Is...> {};
 
 public:
     template <size_t column_number>
     using column_type
         = std::tuple_element_t<column_number, std::tuple<column_types...>>;
+
     template <typename column_type>
     static constexpr size_t column_type_number
         = columnist::type_index<column_type, column_types...>;
 
-    using row = columnist::row<table, column_numbers>;
-    using const_row = columnist::row<const table, column_numbers>;
+    template <typename T>
+    using row_type = decltype(make_row_type<T>(column_numbers{}));
+
+    using row = row_type<table>;
+    using const_row = row_type<const table>;
 
     struct row_id;
     template <typename>
@@ -201,7 +199,7 @@ class table<column_types...>::iterator_t {
     friend class table<column_types...>;
 
 public:
-    using value_type = columnist::row<T, typename T::column_numbers>;
+    using value_type = typename table::template row_type<T>;
     using difference_type = ptrdiff_t;
 
     iterator_t() = default;
@@ -246,10 +244,8 @@ struct table<column_types...>::row_id {
 };
 
 template <typename table_type, size_t... table_column_numbers>
-constexpr auto
-row<table_type,
-    std::index_sequence<table_column_numbers...>>::table_column_number(size_t i)
-    -> size_t
+constexpr auto row<table_type, table_column_numbers...>::table_column_number(
+    size_t i) -> size_t
 {
     constexpr std::array columns{ table_column_numbers... };
     return columns[i];
@@ -258,10 +254,8 @@ row<table_type,
 template <typename table_type, size_t... table_column_numbers>
 template <size_t... column_numbers>
     requires((column_numbers < sizeof...(table_column_numbers)) && ...)
-constexpr auto
-row<table_type, std::index_sequence<table_column_numbers...>>::narrow() const
-    -> row<table_type,
-           std::index_sequence<table_column_number(column_numbers)...>>
+constexpr auto row<table_type, table_column_numbers...>::narrow() const
+    -> row<table_type, table_column_number(column_numbers)...>
 {
     return { table_, offset_ };
 }
@@ -269,26 +263,23 @@ row<table_type, std::index_sequence<table_column_numbers...>>::narrow() const
 template <typename table_type, size_t... table_column_numbers>
 template <typename... column_types>
 [[nodiscard]] constexpr auto
-row<table_type, std::index_sequence<table_column_numbers...>>::narrow() const
-    -> row<table_type,
-           std::index_sequence<
-               table_type::template column_type_number<column_types>...>>
+row<table_type, table_column_numbers...>::narrow() const
+    -> row<table_type, table_type::template column_type_number<column_types>...>
     requires(has_type<column_types> && ...)
-
 {
     return { table_, offset_ };
 }
 
 template <typename table_type, size_t... table_column_numbers>
-auto row<table_type, std::index_sequence<table_column_numbers...>>::row_id()
-    const -> table_type::row_id
+auto row<table_type, table_column_numbers...>::row_id() const
+    -> table_type::row_id
 {
     return table_->rindex_[offset_];
 }
 
 template <typename table_type, size_t... table_column_numbers>
 template <typename... column_types>
-auto row<table_type, std::index_sequence<table_column_numbers...>>::operator==(
+auto row<table_type, table_column_numbers...>::operator==(
     const std::tuple<column_types...>& rh) const -> bool
 {
     auto elementwise_equality = [this](const auto&... vs) {
@@ -301,16 +292,14 @@ auto row<table_type, std::index_sequence<table_column_numbers...>>::operator==(
 template <typename table_type, size_t... table_column_numbers>
 template <typename T2>
     requires(std::is_same_v<const T2&, const table_type&>)
-auto row<table_type, std::index_sequence<table_column_numbers...>>::operator==(
-    const row<T2, std::index_sequence<table_column_numbers...>>& rh)
-    const noexcept -> bool
+auto row<table_type, table_column_numbers...>::operator==(
+    const row<T2, table_column_numbers...>& rh) const noexcept -> bool
 {
     return table_ == rh.table_ && offset_ == rh.offset_;
 }
 
 template <typename table_type, size_t... table_column_numbers>
-row<table_type, std::index_sequence<table_column_numbers...>>::row(
-    table_type* table, size_t offset)
+row<table_type, table_column_numbers...>::row(table_type* table, size_t offset)
 : table_(table), offset_(offset)
 {}
 
@@ -713,9 +702,7 @@ range_type_selector_maker<column_types...> select()
 } // namespace columnist
 
 template <std::size_t I, typename Table, size_t... column_numbers>
-struct std::tuple_element<
-    I,
-    columnist::row<Table, std::index_sequence<column_numbers...>>> {
+struct std::tuple_element<I, columnist::row<Table, column_numbers...>> {
     using type = columnist::forwarded_like_t<
         Table&,
         columnist::nth_type_t<
@@ -724,8 +711,7 @@ struct std::tuple_element<
 };
 
 template <typename Table, size_t... column_numbers>
-struct std::tuple_size<
-    columnist::row<Table, std::index_sequence<column_numbers...>>>
+struct std::tuple_size<columnist::row<Table, column_numbers...>>
 : std::integral_constant<size_t, sizeof...(column_numbers)> {};
 
 #endif // COLUMNIST_TABLE_HPP
