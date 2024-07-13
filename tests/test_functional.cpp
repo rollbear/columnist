@@ -353,3 +353,63 @@ TEST_CASE("apply works with std::array")
     REQUIRE(!can_call(apply(deref_sub), std::move(std::as_const(m))));
     REQUIRE(apply(deref_sub)(std::move(m)) == 2);
 }
+
+TEST_CASE("apply a function pointer")
+{
+    GIVEN("a tuple with a type that has member functions")
+    {
+        struct S {
+            int v;
+
+            int f(int x) & { return x + v; }
+
+            int f(int x) && { return x * v; }
+
+            int f(int x) const& { return x - v; }
+
+            int f(int x) const&& { return x / v; }
+        };
+
+        std::tuple<S, int> t{ S{ 2 }, 10 };
+        WHEN("apply is called with a pointer to non-const lvalue member "
+             "function")
+        {
+            int (S::*func)(int)& = &S::f;
+            auto retval = apply(func)(t);
+            THEN("the non-const member function is called")
+            {
+                REQUIRE(retval == 12);
+            }
+        }
+        AND_WHEN("apply is called with a function to non-const rvalue member "
+                 "function")
+        {
+            int (S::*func)(int)&& = &S::f;
+            auto retval = apply(func)(std::move(t));
+            THEN("the non-const member function is called")
+            {
+                REQUIRE(retval == 20);
+            }
+        }
+        AND_WHEN(
+            "apply is called with a pointer to const lvalue member function")
+        {
+            int (S::*func)(int) const& = &S::f;
+            auto retval = apply(func)(t);
+            THEN("the const member function is called")
+            {
+                REQUIRE(retval == 8);
+            }
+        }
+        AND_WHEN(
+            "apply is called with a pointer to const rvalue member function")
+        {
+            int (S::*func)(int) const&& = &S::f;
+            auto retval = apply(func)(std::move(t));
+            THEN("the const member function is called")
+            {
+                REQUIRE(retval == 5);
+            }
+        }
+    }
+}

@@ -37,7 +37,8 @@ inline constexpr auto swizzle = []<typename F>(F&& f) {
                    forwarded_like_t<self, F&>,
                    std::tuple_element_t<Ids, std::tuple<Ts...>>...> {
         auto tup = std::forward_as_tuple(std::forward<Ts>(ts)...);
-        return std::forward_like<self>(f)(std::get<Ids>(std::move(tup))...);
+        return std::invoke(std::forward_like<self>(f),
+                           std::get<Ids>(std::move(tup))...);
     };
 };
 
@@ -146,7 +147,8 @@ inline constexpr auto apply = []<typename F>(F&& f) {
         auto call
             = [&]<size_t... Is>(std::index_sequence<Is...>) -> decltype(auto) {
             using internal::get;
-            return std::forward_like<Self>(f)(get<Is>(std::forward<T>(t))...);
+            return std::invoke(std::forward_like<Self>(f),
+                               get<Is>(std::forward<T>(t))...);
         };
         constexpr auto arity = internal::tuple_size_v<T>;
         return std::invoke(call, std::make_index_sequence<arity>{});
