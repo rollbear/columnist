@@ -49,10 +49,9 @@ public:
     {}
 
     template <size_t... column_numbers>
-        requires((column_numbers < sizeof...(table_column_numbers)) && ...)
-    [[nodiscard]] constexpr row<table_type,
-                                table_column_number(column_numbers)...>
-    narrow() const;
+    [[nodiscard]] constexpr auto
+    narrow() const -> row<table_type, table_column_number(column_numbers)...>
+        requires((column_numbers < sizeof...(table_column_numbers)) && ...);
 
     template <typename... column_types>
     [[nodiscard]] constexpr row<
@@ -116,9 +115,9 @@ class table {
 
     using column_numbers = std::index_sequence_for<column_types...>;
 
-    template <typename T>
-    static constexpr auto make_row_type
-        = []<size_t... Is>(std::index_sequence<Is...>) -> row<T, Is...> {};
+    template <typename T, size_t... Is>
+    static constexpr auto
+        make_row_type(std::index_sequence<Is...>) -> row<T, Is...>;
 
 public:
     template <size_t column_number>
@@ -253,9 +252,9 @@ constexpr auto row<table_type, table_column_numbers...>::table_column_number(
 
 template <typename table_type, size_t... table_column_numbers>
 template <size_t... column_numbers>
+[[nodiscard]] constexpr auto row<table_type, table_column_numbers...>::narrow()
+    const -> row<table_type, table_column_number(column_numbers)...>
     requires((column_numbers < sizeof...(table_column_numbers)) && ...)
-constexpr auto row<table_type, table_column_numbers...>::narrow() const
-    -> row<table_type, table_column_number(column_numbers)...>
 {
     return { table_, offset_ };
 }
